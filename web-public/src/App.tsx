@@ -1,39 +1,67 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { get } from './api/client'
+import { useAuthStore } from './auth/store'
+import PublicLayout from './layouts/PublicLayout'
+import LandingPage from './pages/LandingPage'
+import BookingPage from './pages/BookingPage'
+import LoginPage, { RegisterPage } from './pages/AuthPages'
+import AccountPage from './pages/AccountPage'
+import ChatWidget from './components/ChatWidget'
 
-type Health = { status: string; version: string; env: string }
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const patient = useAuthStore((s) => s.patient)
+  const navigate = useNavigate()
+  const [checked, setChecked] = useState(!!patient)
 
-function HealthBadge() {
-  const { data, isError, isLoading } = useQuery<Health>({
-    queryKey: ['health'],
-    queryFn: async () => {
-      const res = await fetch('/api/health')
-      if (!res.ok) throw new Error('health check failed')
-      return res.json()
-    },
-  })
+  useEffect(() => {
+    if (patient) {
+      setChecked(true)
+      return
+    }
+    ;(async () => {
+      try {
+        const me = await get<{ id: number; full_name: string; email: string | null; phone: string | null }>(
+          '/api/public/auth/me',
+        )
+        useAuthStore
+          .getState()
+          .setSession({ id: me.id, full_name: me.full_name, email: me.email, phone: me.phone, locale: 'ar' }, '')
+      } catch {
+        navigate('/login', { replace: true })
+      } finally {
+        setChecked(true)
+      }
+    })()
+  }, [patient, navigate])
 
-  if (isLoading) return <span className="text-ink-400">checking API…</span>
-  if (isError || !data)
-    return <span className="text-danger">API unreachable — is the backend running on :8000?</span>
-  return (
-    <span className="text-success">
-      API {data.status} · v{data.version} · {data.env}
-    </span>
-  )
+  if (!checked) return null
+  return <>{patient ? children : null}</>
 }
 
 export default function App() {
+  const location = useLocation()
+  const isBookRoute = location.pathname.startsWith('/book')
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg">
-      <div className="rounded-xl border border-border bg-surface p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-bold text-ink-900">HMSv2 — Public Site</h1>
-        <p className="mt-2 text-sm text-ink-600">
-          Phase 01 scaffold — patient-facing site placeholder.
-        </p>
-        <div className="mt-4 text-sm">
-          <HealthBadge />
-        </div>
-      </div>
-    </div>
+    <>
+      <Routes>
+        <Route path="/" element={<PublicLayout />}>
+          <Route index element={<LandingPage />} />
+          <Route path="book" element={<BookingPage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
+          <Route
+            path="account"
+            element={
+              <RequireAuth>
+                <AccountPage />
+              </RequireAuth>
+            }
+          />
+        </Route>
+      </Routes>
+      {!isBookRoute && <ChatWidget />}
+    </>
   )
 }
