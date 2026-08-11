@@ -14,10 +14,12 @@ from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.db.session import SessionLocal
+from app.models.comms import PrintTemplate
 from app.models.config import Setting
 from app.models.emr import Medication
 from app.models.identity import Doctor, NumberSequence, StaffUser
 from app.models.scheduling import DoctorSchedule, VisitType
+from app.services.print_templates import PRINT_TEMPLATES
 
 SEED_MEDICATIONS = [
     ("Augmentin", "أوجمنتين", "tab", "1g"),
@@ -176,6 +178,18 @@ def seed() -> None:
                         Medication(
                             name=name, name_ar=name_ar, form=form, strength=strength
                         )
+                    )
+
+        for key, locales in PRINT_TEMPLATES.items():
+            for locale, (title, body) in locales.items():
+                exists = db.scalar(
+                    select(PrintTemplate).where(
+                        PrintTemplate.key == key, PrintTemplate.locale == locale
+                    )
+                )
+                if exists is None:
+                    db.add(
+                        PrintTemplate(key=key, locale=locale, title=title, body_html=body)
                     )
 
         db.commit()
