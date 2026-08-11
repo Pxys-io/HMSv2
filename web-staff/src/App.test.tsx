@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 
@@ -8,12 +9,15 @@ const queryClient = new QueryClient({
 })
 
 describe('staff placeholder', () => {
-  it('renders the workspace title', () => {
+  it('renders the login page', () => {
     render(
       <QueryClientProvider client={queryClient}>
-        <App />
+        <MemoryRouter initialEntries={['/login']}>
+          <App />
+        </MemoryRouter>
       </QueryClientProvider>,
     )
-    expect(screen.getByText('HMSv2 Staff')).toBeInTheDocument()
+    expect(screen.getByText('HMSv2')).toBeInTheDocument()
+    expect(screen.getByText('Clinic staff workspace')).toBeInTheDocument()
   })
 })

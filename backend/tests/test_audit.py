@@ -59,6 +59,27 @@ def test_reconcile_closes_unresolved_intent():
         assert status["ok"] is True
         assert status["unresolved_count"] == 0
 
+def test_audit_viewer_endpoints(client, admin_user):
+    from fastapi.testclient import TestClient
+
+    token = _admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.get("/api/audit/events?page_size=10", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["items"]
+
+    verify = client.post("/api/audit/verify", headers=headers)
+    assert verify.status_code == 200
+    assert verify.json()["ok"] is True
+
+    export = client.get(
+        f"/api/audit/export?from=2020-01-01T00:00:00&to=2030-01-01T00:00:00",
+        headers=headers,
+    )
+    assert export.status_code == 200
+    assert "ndjson" in export.headers["content-type"]
+
+
 def test_tamper_detected(client, admin_user):
     with AuditSessionLocal() as audit_db:
         audit_db.execute(
@@ -95,3 +116,4 @@ def test_audit_write_failure_fails_request(client, admin_user, monkeypatch):
         "/api/auth/login", json={"email": "admin@example.com", "password": "passw0rd"}
     )
     assert resp.status_code == 500
+
