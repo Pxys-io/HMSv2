@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { get, patch, post, put } from '../../api/client'
 import { Button, Card, Field, inputClass } from '../../components/ui'
+import { CameraCapture } from '../../components/pwa'
 
 type Visit = {
   id: number
@@ -67,6 +68,7 @@ export default function ExamPage() {
   })
   const [ddLabels, setDdLabels] = useState('')
   const [finalLabels, setFinalLabels] = useState('')
+  const [mobileTab, setMobileTab] = useState<'history' | 'exam' | 'rx'>('exam')
 
   const visit = useQuery({
     queryKey: ['visit', profileId, entryId],
@@ -193,15 +195,30 @@ export default function ExamPage() {
   const v = visit.data
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex h-full flex-col gap-4 lg:flex-row">
+      {/* mobile tabs (PWA5) */}
+      <div className="flex gap-1 rounded-md border border-border bg-surface p-1 lg:hidden">
+        {(['history', 'exam', 'rx'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setMobileTab(tab)}
+            className={`flex-1 rounded px-2 py-1.5 text-xs font-medium capitalize ${
+              mobileTab === tab ? 'bg-brand-600 text-white' : 'text-ink-600'
+            }`}
+          >
+            {tab === 'history' ? 'History' : tab === 'exam' ? 'Exam' : 'Rx & Files'}
+          </button>
+        ))}
+      </div>
+
       {/* history timeline */}
-      <Card className="w-72 shrink-0 overflow-y-auto p-3">
+      <Card className={`w-72 shrink-0 overflow-y-auto p-3 ${mobileTab === 'history' ? 'block' : 'hidden'} lg:block`}>
         <h2 className="mb-2 text-sm font-semibold text-ink-600">History</h2>
         <Timeline profileId={Number(profileId)} />
       </Card>
 
       {/* exam form */}
-      <div className="min-w-0 flex-1 space-y-4 overflow-y-auto">
+      <div className={`min-w-0 flex-1 space-y-4 overflow-y-auto ${mobileTab === 'exam' ? 'block' : 'hidden'} lg:block`}>
         <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-3">
           <div>
             <p className="font-bold text-ink-900">{v.patient?.full_name ?? 'Patient'}</p>
@@ -280,6 +297,7 @@ export default function ExamPage() {
           </Button>
         </Card>
 
+        <div className={`${mobileTab === 'rx' ? 'block' : 'hidden'} space-y-4 lg:block`}>
         <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold text-ink-600">Prescription</h3>
           {rxDraft.items.map((item, i) => (
@@ -343,6 +361,7 @@ export default function ExamPage() {
         </Card>
 
         <Attachments visitId={v.id} />
+        </div>
       </div>
     </div>
   )
@@ -381,10 +400,11 @@ function Attachments({ visitId }: { visitId: number }) {
   const visit = useQuery({ queryKey: ['visit-attachments', visitId], queryFn: () => get<Visit>(`/api/visits/${visitId}`) })
   const attachments = visit.data?.attachments ?? []
 
-  async function upload() {
-    if (!file) return
+  async function upload(override?: File) {
+    const target = override ?? file
+    if (!target) return
     const form = new FormData()
-    form.append('file', file)
+    form.append('file', target)
     form.append('kind', kind)
     await fetch(`/api/visits/${visitId}/attachments`, { method: 'POST', body: form })
     visit.refetch()
@@ -394,15 +414,16 @@ function Attachments({ visitId }: { visitId: number }) {
   return (
     <Card className="p-3">
       <h3 className="mb-2 text-sm font-semibold text-ink-600">Attachments</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <CameraCapture onCaptured={(f) => upload(f)} label="Camera" />
         <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <select className={inputClass + ' w-36'} value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select className={inputClass + ' w-32'} value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="photo">Photo</option>
           <option value="lab">Lab</option>
           <option value="imaging">Imaging</option>
           <option value="report">Report</option>
         </select>
-        <Button onClick={upload} disabled={!file}>
+        <Button onClick={() => upload()} disabled={!file}>
           Upload
         </Button>
       </div>

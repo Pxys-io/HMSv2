@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { registerSW } from 'virtual:pwa-register'
+import { OfflineBanner } from './components/pwa'
 import { get } from './api/client'
 import { useAuthStore } from './auth/store'
 import LoginPage from './auth/LoginPage'
@@ -64,6 +66,15 @@ function RequireRole({ roles, children }: { roles: string[]; children: React.Rea
 
 export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [updateAvailable, setUpdateAvailable] = useState(false)
+
+  useEffect(() => {
+    registerSW({
+      onNeedRefresh() {
+        setUpdateAvailable(true)
+      },
+    })
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,6 +89,7 @@ export default function App() {
 
   return (
     <>
+      <OfflineBanner />
       <Toaster position="top-left" />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -161,6 +173,14 @@ export default function App() {
         </Route>
       </Routes>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {updateAvailable && (
+        <button
+          onClick={() => window.location.reload()}
+          className="fixed bottom-4 end-4 z-50 rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-e2"
+        >
+          New version available — refresh
+        </button>
+      )}
     </>
   )
 }
