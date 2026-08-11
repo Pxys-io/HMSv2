@@ -128,6 +128,7 @@ export default function App() {
               </RequireRole>
             }
           />
+          <Route path="admin/users" element={<Navigate to="/admin" replace />} />
           <Route path="patients" element={<PatientsPage />} />
           <Route path="patients/:profileId" element={<PatientDetailPage />} />
           <Route path="patients/:profileId/exam" element={<ExamPage />} />
@@ -180,6 +181,7 @@ export default function App() {
               </RequireRole>
             }
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />

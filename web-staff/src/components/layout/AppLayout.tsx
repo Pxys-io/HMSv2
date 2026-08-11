@@ -25,7 +25,7 @@ const NAV: { to: string; label: string; roles: string[]; icon: string }[] = [
   { to: '/chat', label: 'Support chat', roles: ['admin', 'secretary'], icon: '💬' },
   { to: '/reports/daily', label: 'Reports', roles: ['admin'], icon: '📊' },
   { to: '/audit', label: 'Audit log', roles: ['admin'], icon: '🔒' },
-  { to: '/admin/users', label: 'Admin', roles: ['admin'], icon: '⚙️' },
+  { to: '/admin', label: 'Admin', roles: ['admin'], icon: '⚙️' },
 ]
 
 function useNotifications() {
