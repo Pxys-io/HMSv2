@@ -168,7 +168,9 @@ def test_template_editor_sanitizes(client, emr_setup):
     from app.models.comms import PrintTemplate
 
     db = SessionLocal()
-    template = db.scalar(select(PrintTemplate).where(PrintTemplate.key == "rx", PrintTemplate.locale == "en"))
+    template = db.scalar(
+        select(PrintTemplate).where(PrintTemplate.key == "rx", PrintTemplate.locale == "en")
+    )
     template_id = template.id
     db.close()
     admin = {"Authorization": "Bearer " + _admin_token(client)}

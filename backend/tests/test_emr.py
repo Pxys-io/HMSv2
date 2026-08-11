@@ -389,14 +389,6 @@ def test_attachment_rejects_bad_types_and_duplicates(client, doctor_client):
 
 
 def test_attachment_requires_doctor_auth(client, doctor_client):
-    from app.db.session import SessionLocal as _SL
-    from app.models.identity import PatientProfile as _PP
-
-    db = _SL()
-    profile = db.get(_PP, doctor_client["profile_id"])
-    db.close()
-
-    headers = _auth(doctor_client)
     client.post(
         "/api/auth/login",
         json={"email": "sec@example.com", "password": "passw0rd"},

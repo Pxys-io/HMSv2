@@ -60,7 +60,6 @@ def test_reconcile_closes_unresolved_intent():
         assert status["unresolved_count"] == 0
 
 def test_audit_viewer_endpoints(client, admin_user):
-    from fastapi.testclient import TestClient
 
     token = _admin_token(client)
     headers = {"Authorization": f"Bearer {token}"}
@@ -73,7 +72,7 @@ def test_audit_viewer_endpoints(client, admin_user):
     assert verify.json()["ok"] is True
 
     export = client.get(
-        f"/api/audit/export?from=2020-01-01T00:00:00&to=2030-01-01T00:00:00",
+        "/api/audit/export?from=2020-01-01T00:00:00&to=2030-01-01T00:00:00",
         headers=headers,
     )
     assert export.status_code == 200
