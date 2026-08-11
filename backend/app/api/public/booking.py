@@ -3,7 +3,7 @@ visit types, and patient booking/move/cancel. Calls only from the public
 site; public-safe projections only (no phones, internal rates, or counts)."""
 
 import json
-from datetime import date, timedelta
+from datetime import UTC, date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -108,6 +108,68 @@ def _public_appointment_payload(appt: Appointment) -> dict:
     }
 
 
+def _after_public_booking(db: Session, appt: Appointment, account: PatientAccount) -> None:
+    """N1/N3: fan out the in-app notification and enqueue the confirmation email."""
+    from app.models.comms import OutboxEvent
+    from app.models.identity import Doctor, StaffUser
+    from app.services import notify
+
+    doctor = db.get(Doctor, appt.doctor_id)
+    doctor_name = None
+    if doctor:
+        user = db.get(StaffUser, doctor.staff_user_id)
+        doctor_name = user.full_name if user else None
+    title = "New booking"
+    body = (
+        f"{account.full_name} booked {appt.date.isoformat()} "
+        f"at {appt.start_time} with {doctor_name}"
+        if appt.start_time
+        else f"{account.full_name} booked {appt.date.isoformat()} with {doctor_name}"
+    )
+    for notification in notify.fan_out(db, type="booking_new", title=title, body=body,
+                                       roles=("admin", "secretary")):
+        from app.api.routes.notifications import broadcast_notification
+
+        broadcast_notification(
+            notification.staff_user_id,
+            {
+                "type": "booking_new",
+                "title": title,
+                "body": body,
+                "notification_id": notification.id,
+            },
+        )
+    db.commit()
+
+    if account.email:
+        from datetime import datetime
+
+        from app.services.emailer import render_confirmation
+
+        subject, html = render_confirmation(
+            clinic_name="Clinic",  # filled from settings at send time in v1
+            patient_name=account.full_name,
+            doctor_name=doctor_name or "",
+            date_text=appt.date.isoformat(),
+            time_text=appt.start_time.strftime("%H:%M") if appt.start_time else "",
+            booking_ref=appt.booking_ref,
+            locale=account.locale,
+        )
+
+        db.add(
+            OutboxEvent(
+                kind="email_booking_confirmation",
+                aggregate_type="appointment",
+                aggregate_id=appt.id,
+                payload={"to": account.email, "subject": subject, "html": html},
+                status="pending",
+                next_attempt_at=datetime.now(UTC),
+                dedupe_key=f"email:{appt.booking_ref}",
+            )
+        )
+        db.commit()
+
+
 def _own_profile(db: Session, account: PatientAccount, profile_id: int) -> PatientProfile:
     profile = db.get(PatientProfile, profile_id)
     if profile is None or profile.account_id != account.id:
@@ -147,6 +209,7 @@ def public_book(
         source="public",
         idempotency_key=key,
     )
+    _after_public_booking(db, appt, current)
     return _public_appointment_payload(appt)
 
 

@@ -54,6 +54,12 @@ def _fresh_databases():
             is_active=True,
         )
     )
+    from app.models.comms import PrintTemplate
+    from app.services.print_templates import PRINT_TEMPLATES
+
+    for key, locales in PRINT_TEMPLATES.items():
+        for locale, (title, body) in locales.items():
+            session.add(PrintTemplate(key=key, locale=locale, title=title, body_html=body))
     session.commit()
     session.close()
     yield

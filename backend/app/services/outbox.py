@@ -88,8 +88,10 @@ def _process(db: Session, event: OutboxEvent) -> None:
 
         scan_attachment(db, event.aggregate_id)
     elif event.kind == "email_booking_confirmation":
-        # Phase 08 wires the SMTP sender here; until then the job is a stub.
-        logger.info("outbox email stub for booking %s", event.aggregate_id)
+        from app.services.emailer import send_confirmation_sync
+
+        payload = event.payload or {}
+        send_confirmation_sync(payload["to"], payload["subject"], payload["html"])
     else:
         raise ValueError(f"unknown outbox kind {event.kind}")
 

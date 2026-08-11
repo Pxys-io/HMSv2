@@ -9,12 +9,15 @@ from app.api.public import booking as public_booking
 from app.api.public import profiles as public_profiles
 from app.api.routes import (
     appointments,
+    chat,
     csrf,
     doctors,
     files,
     financial,
     medications,
+    notifications,
     patients,
+    printing,
     queue,
     scheduling,
     users,
@@ -81,6 +84,10 @@ def create_app() -> FastAPI:
     app.include_router(medications.router)
     app.include_router(files.router)
     app.include_router(financial.router)
+    app.include_router(printing.router)
+    app.include_router(chat.staff_router)
+    app.include_router(chat.public_router)
+    app.include_router(notifications.router)
 
     return app
 
