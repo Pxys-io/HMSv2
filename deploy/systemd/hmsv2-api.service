@@ -1,0 +1,24 @@
+[Unit]
+Description=HMSv2 API (FastAPI)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=hmsv2
+Group=hmsv2
+WorkingDirectory=/opt/hmsv2/backend
+EnvironmentFile=/opt/hmsv2/backend/.env
+ExecStart=/opt/hmsv2/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+
+# Hardening (Plan/13 §3.1)
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/hmsv2/uploads /var/lib/hmsv2/checkpoints
+
+[Install]
+WantedBy=multi-user.target
