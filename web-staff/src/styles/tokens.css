@@ -1,0 +1,88 @@
+/* HMSv2 design tokens — Plan/00 §§2–4.
+ * This is the ONLY place hex values may appear. Components use semantic
+ * classes (bg-surface, text-ink-600, border-border, bg-brand-600) so a dark
+ * theme can later be added by swapping variables here. */
+
+@import "tailwindcss";
+
+:root {
+  /* Brand */
+  --brand-600: #0d9488;
+  --brand-700: #0f766e;
+  --brand-50: #f0fdfa;
+
+  /* Ink (slate neutrals) */
+  --ink-900: #0f172a;
+  --ink-600: #475569;
+  --ink-400: #94a3b8;
+
+  /* Surfaces */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+
+  /* Semantic */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+
+  /* Status (appointments/queue) */
+  --status-booked-bg: #f1f5f9;
+  --status-booked-text: #475569;
+  --status-checked-bg: #dbeafe;
+  --status-checked-text: #1d4ed8;
+  --status-called-bg: #e0e7ff;
+  --status-called-text: #4338ca;
+  --status-waiting-bg: #fef3c7;
+  --status-waiting-text: #b45309;
+  --status-inroom-bg: #d1fae5;
+  --status-inroom-text: #047857;
+  --status-completed-bg: #ccfbf1;
+  --status-completed-text: #0f766e;
+  --status-cancelled-bg: #fee2e2;
+  --status-cancelled-text: #b91c1c;
+  --status-noshow-bg: #ffedd5;
+  --status-noshow-text: #c2410c;
+}
+
+@theme {
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-50: var(--brand-50);
+  --color-ink-900: var(--ink-900);
+  --color-ink-600: var(--ink-600);
+  --color-ink-400: var(--ink-400);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-status-booked: var(--status-booked-bg);
+  --color-status-booked-text: var(--status-booked-text);
+  --color-status-checked: var(--status-checked-bg);
+  --color-status-checked-text: var(--status-checked-text);
+  --color-status-called: var(--status-called-bg);
+  --color-status-called-text: var(--status-called-text);
+  --color-status-waiting: var(--status-waiting-bg);
+  --color-status-waiting-text: var(--status-waiting-text);
+  --color-status-inroom: var(--status-inroom-bg);
+  --color-status-inroom-text: var(--status-inroom-text);
+  --color-status-completed: var(--status-completed-bg);
+  --color-status-completed-text: var(--status-completed-text);
+  --color-status-cancelled: var(--status-cancelled-bg);
+  --color-status-cancelled-text: var(--status-cancelled-text);
+  --color-status-noshow: var(--status-noshow-bg);
+  --color-status-noshow-text: var(--status-noshow-text);
+
+  --font-sans: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink-900);
+  font-family: var(--font-sans);
+}
