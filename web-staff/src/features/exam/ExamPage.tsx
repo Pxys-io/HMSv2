@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { get, patch, post, put } from '../../api/client'
 import { Button, Card, Field, inputClass } from '../../components/ui'
 import { CameraCapture } from '../../components/pwa'
@@ -54,14 +54,35 @@ const SECTIONS = [
   ['notes_next_visit', 'Notes for next visit'],
 ] as const
 
+function buildFields(draft: Record<string, unknown>): Record<string, unknown> {
+  const fields: Record<string, unknown> = {}
+  for (const [key] of SECTIONS) {
+    const value = draft[key]
+    if (typeof value === 'string' && value.trim() === '') {
+      fields[key] = null
+    } else if (value !== undefined) {
+      fields[key] = value
+    }
+  }
+  if (draft.follow_up_weeks !== undefined) {
+    fields.follow_up_weeks = draft.follow_up_weeks === '' ? null : Number(draft.follow_up_weeks)
+  }
+  return fields
+}
+
 export default function ExamPage() {
   const { profileId } = useParams()
   const [params] = useSearchParams()
   const entryId = params.get('entry')
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const versionRef = useRef(0)
+  const lastSavedRef = useRef('')
 
   const [draft, setDraft] = useState<Record<string, unknown>>({})
-  const [version, setVersion] = useState(0)
+  const setVersion = (v: number) => {
+    versionRef.current = v
+  }
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'conflict'>('idle')
   const [rxDraft, setRxDraft] = useState<{ notes: string | null; items: Omit<PrescriptionItem, 'id'>[] }>({
     notes: null,
@@ -106,6 +127,18 @@ export default function ExamPage() {
   useEffect(() => {
     if (visit.data) {
       setVersion(visit.data.record_version)
+      versionRef.current = visit.data.record_version
+      lastSavedRef.current = JSON.stringify(buildFields({
+        chief_complaint: visit.data.chief_complaint ?? '',
+        history: visit.data.history ?? '',
+        clinical_exam: visit.data.clinical_exam ?? '',
+        findings: visit.data.findings ?? '',
+        labs: visit.data.labs ?? '',
+        imaging: visit.data.imaging ?? '',
+        plan: visit.data.plan ?? '',
+        notes_next_visit: visit.data.notes_next_visit ?? '',
+        follow_up_weeks: visit.data.follow_up_weeks ?? '',
+      }))
       setDraft({
         chief_complaint: visit.data.chief_complaint ?? '',
         history: visit.data.history ?? '',
@@ -130,31 +163,24 @@ export default function ExamPage() {
     }
   }, [visit.data])
 
-  // autosave debounce
+  // autosave debounce: only fires when the draft differs from the last
+  // saved snapshot, so it never loops and never races into 409s.
   useEffect(() => {
     if (!visit.data || saveState === 'saving') return
     const timer = setTimeout(async () => {
+      const fields = buildFields(draft)
+      const snapshot = JSON.stringify(fields)
+      if (snapshot === lastSavedRef.current) return
       setSaveState('saving')
       try {
-        const fields: Record<string, unknown> = {}
-        for (const [key] of SECTIONS) {
-          const value = draft[key]
-          if (typeof value === 'string' && value.trim() === '') {
-            fields[key] = null
-          } else if (value !== undefined) {
-            fields[key] = value
-          }
-        }
-        if (draft.follow_up_weeks !== undefined) {
-          fields.follow_up_weeks =
-            draft.follow_up_weeks === '' ? null : Number(draft.follow_up_weeks)
-        }
         const updated = await patch<Visit>(
           `/api/visits/${visit.data.id}`,
-          { ...fields, record_version: version },
+          { ...fields, record_version: versionRef.current },
           crypto.randomUUID(),
         )
+        versionRef.current = updated.record_version
         setVersion(updated.record_version)
+        lastSavedRef.current = snapshot
         setSaveState('saved')
       } catch {
         setSaveState('conflict')
@@ -162,12 +188,13 @@ export default function ExamPage() {
     }, 800)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, version, visit.data?.id])
+  }, [draft, visit.data?.id])
 
   async function complete() {
     if (!visit.data) return
     await post(`/api/visits/${visit.data.id}/complete`, {}, crypto.randomUUID())
     queryClient.invalidateQueries({ queryKey: ['visit'] })
+    navigate(`/patients/${profileId}`)
   }
 
   async function saveDiagnoses() {
@@ -184,17 +211,23 @@ export default function ExamPage() {
         .filter(Boolean)
         .map((label) => ({ kind: 'final', label })),
     ]
-    await put(`/api/visits/${visit.data.id}/diagnoses`, { items, record_version: version }, crypto.randomUUID())
+    const result = await put<{ record_version: number }>(
+      `/api/visits/${visit.data.id}/diagnoses`,
+      { items, record_version: versionRef.current },
+      crypto.randomUUID(),
+    )
+    if (result.record_version) setVersion(result.record_version)
     queryClient.invalidateQueries({ queryKey: ['visit'] })
   }
 
   async function saveRx() {
     if (!visit.data) return
-    await put(
+    const result = await put<{ record_version: number }>(
       `/api/visits/${visit.data.id}/prescription`,
-      { notes: rxDraft.notes, items: rxDraft.items, record_version: version },
+      { notes: rxDraft.notes, items: rxDraft.items, record_version: versionRef.current },
       crypto.randomUUID(),
     )
+    if (result.record_version) setVersion(result.record_version)
     queryClient.invalidateQueries({ queryKey: ['visit'] })
   }
 
@@ -227,8 +260,8 @@ export default function ExamPage() {
         <Timeline profileId={Number(profileId)} />
       </Card>
 
-      {/* exam form */}
-      <div className={`min-w-0 flex-1 space-y-4 overflow-y-auto ${mobileTab === 'exam' ? 'block' : 'hidden'} lg:block`}>
+      {/* exam form — wrapper always visible; content toggles by mobile tab */}
+      <div className="min-w-0 flex-1 space-y-4 overflow-y-auto">
         <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-3">
           <div>
             <p className="font-bold text-ink-900">{v.patient?.full_name ?? 'Patient'}</p>
@@ -260,6 +293,7 @@ export default function ExamPage() {
           </div>
         </div>
 
+        <div className={`space-y-4 ${mobileTab === 'rx' ? 'hidden' : 'block'} lg:block`}>
         {v.status === 'completed' && (
           <p className="rounded-md bg-green-50 p-2 text-sm text-green-800">
             This visit is completed. Corrections are allowed within the 24h window.
@@ -306,8 +340,9 @@ export default function ExamPage() {
             Save diagnoses
           </Button>
         </Card>
+        </div>
 
-        <div className={`${mobileTab === 'rx' ? 'block' : 'hidden'} space-y-4 lg:block`}>
+        <div className={`space-y-4 ${mobileTab === 'rx' ? 'block' : 'hidden'} lg:block`}>
         <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold text-ink-600">Prescription</h3>
           {rxDraft.items.map((item, i) => (
