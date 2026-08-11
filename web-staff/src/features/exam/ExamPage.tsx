@@ -39,6 +39,7 @@ type TimelineCard = {
   date: string
   doctor_name: string | null
   status: string
+  visit_type_id?: number
   [key: string]: unknown
 }
 
@@ -74,21 +75,30 @@ export default function ExamPage() {
     queryKey: ['visit', profileId, entryId],
     queryFn: async () => {
       if (entryId) {
-        const data = await get<{ items: { id: number }[] }>(
-          `/api/queue?doctor_id=${0}&date=2000-01-01`,
-        ).catch(() => null)
-        void data
-        const visits = await get<TimelineCard[]>(`/api/patients/${profileId}/timeline`)
-        const openVisit = visits.find((v) => v.status === 'open')
-        if (openVisit) return get<Visit>(`/api/visits/${openVisit.id}`)
-        // create from queue entry
-        const created = await post<Visit>('/api/visits', { queue_entry_id: Number(entryId) }, crypto.randomUUID())
-        return created
+        // From the queue: the visit already exists or is created here
+        // (service re-enters idempotently).
+        return post<Visit>(
+          '/api/visits',
+          { queue_entry_id: Number(entryId) },
+          crypto.randomUUID(),
+        )
       }
+      // Patient screen "New visit": continue an open visit, otherwise create
+      // an adhoc one with the patient's last visit type (or the first type).
       const visits = await get<TimelineCard[]>(`/api/patients/${profileId}/timeline`)
       const openVisit = visits.find((v) => v.status === 'open')
       if (openVisit) return get<Visit>(`/api/visits/${openVisit.id}`)
-      return get<Visit>(`/api/visits/${visits[0].id}`)
+      let visitTypeId = visits[0]?.visit_type_id
+      if (!visitTypeId) {
+        const types = await get<{ id: number }[]>('/api/visit-types')
+        visitTypeId = types[0]?.id
+      }
+      if (!visitTypeId) throw new Error('no visit type configured')
+      return post<Visit>(
+        '/api/visits',
+        { patient_profile_id: Number(profileId), visit_type_id: visitTypeId },
+        crypto.randomUUID(),
+      )
     },
     enabled: Boolean(profileId),
   })
