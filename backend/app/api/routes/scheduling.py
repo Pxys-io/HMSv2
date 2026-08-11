@@ -160,6 +160,8 @@ def update_schedule(
     _check_doctor_owner(current, sched.doctor_id, db)
     for field in body.model_fields_set:
         setattr(sched, field, getattr(body, field))
+    if sched.start_time >= sched.end_time:
+        raise AppError("VALIDATION", "start_time must be before end_time")
     with audit.audited_action(
         audit_db,
         actor_type="staff", actor_id=current.id, actor_label=current.email,

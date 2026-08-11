@@ -9,7 +9,8 @@ import LoginPage from './auth/LoginPage'
 import AppLayout from './components/layout/AppLayout'
 import CommandPalette from './components/layout/CommandPalette'
 import AuditPage from './features/audit/AuditPage'
-import AdminUsersPage from './features/admin/AdminUsersPage'
+import AdminPage from './features/admin/AdminPage'
+import SchedulePage from './features/schedule/SchedulePage'
 import BoardPage from './features/board/BoardPage'
 import CalendarPage from './features/calendar/CalendarPage'
 import CashierPage from './features/cashier/CashierPage'
@@ -156,6 +157,14 @@ export default function App() {
             }
           />
           <Route
+            path="schedule"
+            element={
+              <RequireRole roles={['doctor']}>
+                <SchedulePage />
+              </RequireRole>
+            }
+          />
+          <Route
             path="audit"
             element={
               <RequireRole roles={['admin']}>
@@ -164,10 +173,10 @@ export default function App() {
             }
           />
           <Route
-            path="admin/users"
+            path="admin"
             element={
               <RequireRole roles={['admin']}>
-                <AdminUsersPage />
+                <AdminPage />
               </RequireRole>
             }
           />

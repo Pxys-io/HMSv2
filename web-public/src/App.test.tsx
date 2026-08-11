@@ -19,6 +19,6 @@ describe('public placeholder', () => {
         </MemoryRouter>
       </QueryClientProvider>,
     )
-    expect(screen.getByText(/Your health|صحتك/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Book your appointment|احجز موعدك/).length).toBeGreaterThan(0)
   })
 })

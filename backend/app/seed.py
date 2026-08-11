@@ -20,6 +20,7 @@ from app.models.emr import Medication
 from app.models.identity import Doctor, NumberSequence, StaffUser
 from app.models.scheduling import DoctorSchedule, VisitType
 from app.services.print_templates import PRINT_TEMPLATES
+from app.services.settings import DEFAULT_SETTINGS
 
 SEED_MEDICATIONS = [
     ("Augmentin", "أوجمنتين", "tab", "1g"),
@@ -62,31 +63,6 @@ DEMO_VISIT_TYPES = [
     {"name": "Procedure", "name_ar": "إجراء", "duration_minutes": 60, "default_price": 800,
      "color": "#D97706"},
 ]
-
-DEFAULT_SETTINGS = {
-    "clinic.name": {"en": "My Clinic", "ar": "عيادتي"},
-    "clinic.address": {"en": "", "ar": ""},
-    "clinic.phones": [],
-    "clinic.country_code": "20",
-    "clinic.timezone": "Africa/Cairo",
-    "clinic.hours_text": {"en": "", "ar": ""},
-    "clinic.location_url": "",
-    "billing.currency": "EGP",
-    "billing.discount_cap_secretary_pct": 10,
-    "booking.horizon_days": 30,
-    "reminder.whatsapp_template_ar": (
-        "أهلاً {patient_name}، معاك عيادة {clinic_name}. بنفتكرك بموعدك مع "
-        "د. {doctor_name} يوم {date} {time_or_day}. لو محتاج تلغي أو تغيّر "
-        "الموعد كلمنا على {clinic_phone}."
-    ),
-    "reminder.whatsapp_template_en": (
-        "Hello {patient_name}, this is {clinic_name} reminding you of your "
-        "appointment with Dr. {doctor_name} on {date} {time_or_day}. To "
-        "reschedule or cancel, call {clinic_phone}."
-    ),
-    "public.about": {"en": "", "ar": ""},
-    "public.services": {"en": [], "ar": []},
-}
 
 
 def seed() -> None:

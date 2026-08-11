@@ -118,6 +118,7 @@ export async function api<T = unknown>(
 }
 
 export const get = <T = unknown>(path: string) => api<T>('GET', path)
+export const del = <T = unknown>(path: string) => api<T>('DELETE', path)
 
 export function idemKey(): string {
   return crypto.randomUUID()

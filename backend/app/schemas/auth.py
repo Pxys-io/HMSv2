@@ -78,7 +78,11 @@ class DoctorCreate(BaseModel):
 
 
 class DoctorUpdate(BaseModel):
-    specialty: str | None = None
+    full_name: str | None = Field(default=None, min_length=2, max_length=200)
+    full_name_ar: str | None = None
+    email: Email | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    specialty: str | None = Field(default=None, min_length=2, max_length=120)
     title: str | None = None
     bio: str | None = None
     bio_ar: str | None = None
@@ -90,3 +94,4 @@ class DoctorUpdate(BaseModel):
     billing_mode: str | None = None
     hourly_rate: float | None = None
     is_bookable_online: bool | None = None
+    public_asset_id: int | None = None

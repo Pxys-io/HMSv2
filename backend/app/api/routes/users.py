@@ -10,7 +10,8 @@ from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.core.security import hash_password
-from app.models.identity import StaffUser
+from app.models.identity import Doctor, StaffUser
+from app.models.scheduling import Appointment, DoctorSchedule
 from app.schemas.auth import UserCreate, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -51,6 +52,9 @@ def create_user(
     )
     db.add(user)
     db.flush()  # assign id before the audited commit
+    if body.role == "doctor":
+        # role=doctor implies a Doctor profile (Plan/02 §3) — auto-create it
+        db.add(Doctor(staff_user_id=user.id, specialty="General"))
     with audit.audited_action(
         audit_db,
         actor_type="staff",
@@ -86,7 +90,31 @@ def update_user(
         user.full_name_ar = body.full_name_ar
     if body.phone is not None:
         user.phone = body.phone
-    if body.role is not None:
+    if body.role is not None and body.role != user.role:
+        if body.role == "doctor":
+            existing = db.scalar(select(Doctor).where(Doctor.staff_user_id == user.id))
+            if existing is None:
+                db.add(Doctor(staff_user_id=user.id, specialty="General"))
+                db.flush()
+        else:
+            doctor = db.scalar(select(Doctor).where(Doctor.staff_user_id == user.id))
+            if doctor is not None:
+                in_use = db.scalar(
+                    select(Appointment.id).where(
+                        Appointment.doctor_id == doctor.id,
+                        Appointment.status.in_(("booked", "checked_in", "in_progress")),
+                    ).limit(1)
+                ) or db.scalar(
+                    select(DoctorSchedule.id)
+                    .where(DoctorSchedule.doctor_id == doctor.id)
+                    .limit(1)
+                )
+                if in_use:
+                    raise AppError(
+                        "CONFLICT",
+                        "doctor has schedules or active appointments; "
+                        "deactivate via the Doctors tab first",
+                    )
         user.role = body.role
     if body.is_active is not None:
         user.is_active = body.is_active
