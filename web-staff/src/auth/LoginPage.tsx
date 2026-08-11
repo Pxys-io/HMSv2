@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { post } from '../api/client'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from './store'
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -46,10 +48,10 @@ export default function LoginPage() {
         onSubmit={submit}
         className="w-full max-w-sm rounded-xl border border-border bg-surface p-8 shadow-sm"
       >
-        <h1 className="text-xl font-bold text-ink-900">HMSv2</h1>
-        <p className="mt-1 text-sm text-ink-600">Clinic staff workspace</p>
+        <h1 className="text-xl font-bold text-ink-900">{t('login.title')}</h1>
+        <p className="mt-1 text-sm text-ink-600">{t('login.subtitle')}</p>
         {error && <p className="mt-4 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-        <label className="mt-5 block text-sm font-medium text-ink-600">Email</label>
+        <label className="mt-5 block text-sm font-medium text-ink-600">{t('login.email')}</label>
         <input
           type="email"
           value={email}
@@ -57,7 +59,7 @@ export default function LoginPage() {
           required
           className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-2 focus:outline-brand-600"
         />
-        <label className="mt-4 block text-sm font-medium text-ink-600">Password</label>
+        <label className="mt-4 block text-sm font-medium text-ink-600">{t('login.password')}</label>
         <input
           type="password"
           value={password}
@@ -70,7 +72,7 @@ export default function LoginPage() {
           disabled={loading}
           className="mt-6 w-full rounded-md bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? t('common.loading') : t('common.signIn')}
         </button>
       </form>
     </div>

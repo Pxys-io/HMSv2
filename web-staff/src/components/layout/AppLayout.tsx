@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { get } from '../../api/client'
+import { setLocale } from '../../i18n'
 import { useAuthStore } from '../../auth/store'
 
 export type NotificationItem = {
@@ -49,6 +51,7 @@ function useNotifications() {
 }
 
 export default function AppLayout() {
+  const { t, i18n } = useTranslation()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const location = useLocation()
@@ -82,7 +85,7 @@ export default function AppLayout() {
               }
             >
               <span className="w-5 text-center">{item.icon}</span>
-              {!collapsed && item.label}
+              {!collapsed && t(`nav.${item.label === 'Waiting room' ? 'board' : item.label.toLowerCase()}`)}
             </NavLink>
           ))}
         </nav>
@@ -125,12 +128,18 @@ export default function AppLayout() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => void setLocale(i18n.language === 'ar' ? 'en' : 'ar')}
+            className="rounded-md px-2 py-1 text-sm text-ink-600 hover:bg-slate-100"
+          >
+            {i18n.language === 'ar' ? 'EN' : 'عربي'}
+          </button>
           <Link
             to="/login"
             onClick={() => useAuthStore.getState().logout()}
             className="rounded-md px-2 py-1 text-sm text-ink-600 hover:bg-slate-100"
           >
-            Sign out
+            {t('common.signOut')}
           </Link>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-4">
