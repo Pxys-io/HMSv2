@@ -27,7 +27,12 @@ def _expiry() -> datetime:
 
 
 def get_key_from_request(request: Request) -> str | None:
-    return request.headers.get("Idempotency-Key")
+    """Accepts the key from the header (mobile/native) or the `_idem` query
+    param (browser fetch streaming, where custom headers are awkward)."""
+    key = request.headers.get("Idempotency-Key")
+    if key:
+        return key
+    return request.query_params.get("_idem")
 
 
 def claim(
