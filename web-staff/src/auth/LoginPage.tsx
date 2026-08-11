@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { post } from '../api/client'
+import { armAutoRefresh, post } from '../api/client'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from './store'
 
@@ -34,6 +34,7 @@ export default function LoginPage() {
         role: data.user.role as 'admin' | 'doctor' | 'secretary',
       }
       setSession(user, data.access_token)
+      armAutoRefresh(data.access_token)
       navigate(homeFor(user.role), { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')

@@ -218,6 +218,23 @@ export default function BookingPage() {
           <h2 className="font-bold text-ink-900">Who is this for?</h2>
           {patient ? (
             <div className="mt-4 space-y-2">
+              <button
+                onClick={async () => {
+                  const created = await post<Profile>(
+                    '/api/public/profiles',
+                    { full_name: patient.full_name, phone: patient.phone ?? '0000000000' },
+                    idemKey(),
+                  )
+                  profiles.refetch()
+                  setProfileId(created.id)
+                }}
+                className="mb-2 w-full rounded-lg border border-brand-600 bg-brand-50 p-3 text-start"
+              >
+                <p className="font-medium text-brand-700">Book for yourself</p>
+                <p className="text-xs text-ink-500">
+                  {patient.full_name} · {patient.phone ?? 'no phone on file'}
+                </p>
+              </button>
               {profiles.data?.map((p) => (
                 <button
                   key={p.id}
@@ -231,7 +248,9 @@ export default function BookingPage() {
                 </button>
               ))}
               {profiles.data?.length === 0 && (
-                <p className="text-sm text-ink-400">No family profiles yet — add one below.</p>
+                <p className="text-sm text-ink-400">
+                  No profiles yet — book for yourself or add a family member.
+                </p>
               )}
               <AddProfile onAdded={(id) => setProfileId(id)} />
             </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { post } from '../api/client'
+import { armAutoRefresh, post } from '../api/client'
 import { useAuthStore } from '../auth/store'
 
 function useLoginForm() {
@@ -23,6 +23,7 @@ function useLoginForm() {
           { id: data.user.id, full_name: data.user.full_name, email: data.user.email, phone: data.user.phone, locale: 'ar' },
           data.access_token,
         )
+      armAutoRefresh(data.access_token)
       navigate('/account')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed')
@@ -85,6 +86,7 @@ export function RegisterPage() {
       useAuthStore
         .getState()
         .setSession({ id: data.user.id, full_name: data.user.full_name, email: email || null, phone: phone || null, locale: 'ar' }, data.access_token)
+      armAutoRefresh(data.access_token)
       navigate('/account')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')

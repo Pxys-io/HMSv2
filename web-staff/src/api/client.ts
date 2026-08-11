@@ -18,16 +18,49 @@ async function getCsrf(): Promise<string> {
   return match ? decodeURIComponent(match[1]) : ''
 }
 
+// Single-flight: concurrent 401s share ONE refresh so cookie rotation never
+// races (a raced rotation would trip the reuse detector and kill the session).
+let refreshPromise: Promise<string | null> | null = null
+
+function tokenExpiryMs(accessToken: string): number | null {
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1]))
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+function scheduleProactiveRefresh(accessToken: string) {
+  const exp = tokenExpiryMs(accessToken)
+  if (!exp) return
+  // Refresh 2 minutes before expiry; never sooner than 1 minute from now.
+  const delay = Math.max(60_000, exp - Date.now() - 120_000)
+  setTimeout(async () => {
+    const fresh = await refreshAccessToken()
+    if (fresh) useAuthStore.getState().setAccessToken(fresh)
+  }, delay)
+}
+
 async function refreshAccessToken(): Promise<string | null> {
-  const csrf = await getCsrf()
-  const res = await fetch('/api/auth/refresh', {
-    method: 'POST',
-    credentials: 'include',
-    headers: csrf ? { 'X-CSRF-Token': csrf } : {},
-  })
-  if (!res.ok) return null
-  const body = await res.json()
-  return body.access_token
+  if (refreshPromise) return refreshPromise
+  refreshPromise = (async () => {
+    const csrf = await getCsrf()
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: csrf ? { 'X-CSRF-Token': csrf } : {},
+    })
+    if (!res.ok) return null
+    const body = await res.json()
+    scheduleProactiveRefresh(body.access_token)
+    return body.access_token as string
+  })()
+  try {
+    return await refreshPromise
+  } finally {
+    refreshPromise = null
+  }
 }
 
 async function rawRequest(
@@ -49,7 +82,9 @@ async function rawRequest(
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 
-  if (res.status === 401 && token && retry) {
+  // 401 -> try the refresh cookie once (also restores sessions after a
+  // page reload, when the in-memory access token is gone).
+  if (res.status === 401 && retry) {
     const fresh = await refreshAccessToken()
     if (fresh) {
       useAuthStore.getState().setAccessToken(fresh)
@@ -98,5 +133,10 @@ export const patch = <T = unknown>(path: string, body?: unknown, idem?: string) 
   api<T>('PATCH', idem ? withKey(path, idem) : path, body)
 export const put = <T = unknown>(path: string, body?: unknown, idem?: string) =>
   api<T>('PUT', idem ? withKey(path, idem) : path, body)
+
+/** Call after login/register to arm the pre-expiry refresh timer. */
+export function armAutoRefresh(accessToken: string) {
+  scheduleProactiveRefresh(accessToken)
+}
 
 export type { ApiError }

@@ -66,13 +66,24 @@ export default function ChatWidget() {
     if (csrf) headers['X-CSRF-Token'] = csrf
     const token = useAuthStore.getState().accessToken
     if (token) headers['Authorization'] = `Bearer ${token}`
-    await fetch('/api/public/chat/messages', {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-      body: JSON.stringify({ body: draft }),
-    })
-    setDraft('')
+    try {
+      const res = await fetch('/api/public/chat/messages', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({ body: draft }),
+      })
+      if (!res.ok) {
+        // Session lost (404/401): reset to the guest form and keep the draft.
+        setGuestStarted(false)
+        setConversationId(null)
+        return
+      }
+      setDraft('')
+    } catch {
+      setGuestStarted(false)
+      setConversationId(null)
+    }
   }
 
   const needsGuestForm = !patient && !guestStarted

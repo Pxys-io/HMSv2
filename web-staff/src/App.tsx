@@ -15,6 +15,7 @@ import CalendarPage from './features/calendar/CalendarPage'
 import CashierPage from './features/cashier/CashierPage'
 import ChatPage from './features/chat/ChatPage'
 import ExamPage from './features/exam/ExamPage'
+import PatientDetailPage from './features/patients/PatientDetailPage'
 import PatientsPage from './features/patients/PatientsPage'
 import RecallsPage from './features/recalls/RecallsPage'
 import ReportsPage from './features/reports/ReportsPage'
@@ -127,7 +128,7 @@ export default function App() {
             }
           />
           <Route path="patients" element={<PatientsPage />} />
-          <Route path="patients/:profileId" element={<div />} />
+          <Route path="patients/:profileId" element={<PatientDetailPage />} />
           <Route path="patients/:profileId/exam" element={<ExamPage />} />
           <Route
             path="cashier"

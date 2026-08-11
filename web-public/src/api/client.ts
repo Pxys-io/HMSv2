@@ -19,16 +19,46 @@ export function idemKey(): string {
   return crypto.randomUUID()
 }
 
+let refreshPromise: Promise<string | null> | null = null
+
+function tokenExpiryMs(accessToken: string): number | null {
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1]))
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+function scheduleProactiveRefresh(accessToken: string) {
+  const exp = tokenExpiryMs(accessToken)
+  if (!exp) return
+  const delay = Math.max(60_000, exp - Date.now() - 120_000)
+  setTimeout(async () => {
+    const fresh = await refreshAccessToken()
+    if (fresh) useAuthStore.getState().setAccessToken(fresh)
+  }, delay)
+}
+
 async function refreshAccessToken(): Promise<string | null> {
-  const csrf = getCsrf()
-  const res = await fetch('/api/public/auth/refresh', {
-    method: 'POST',
-    credentials: 'include',
-    headers: csrf ? { 'X-CSRF-Token': csrf } : {},
-  })
-  if (!res.ok) return null
-  const body = await res.json()
-  return body.access_token
+  if (refreshPromise) return refreshPromise
+  refreshPromise = (async () => {
+    const csrf = getCsrf()
+    const res = await fetch('/api/public/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: csrf ? { 'X-CSRF-Token': csrf } : {},
+    })
+    if (!res.ok) return null
+    const body = await res.json()
+    scheduleProactiveRefresh(body.access_token)
+    return body.access_token as string
+  })()
+  try {
+    return await refreshPromise
+  } finally {
+    refreshPromise = null
+  }
 }
 
 async function rawRequest(
@@ -50,10 +80,10 @@ async function rawRequest(
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 
-  if (res.status === 401 && token && retry) {
+  if (res.status === 401 && retry) {
     const fresh = await refreshAccessToken()
     if (fresh) {
-      useAuthStore.getState().setSession(useAuthStore.getState().patient!, fresh)
+      useAuthStore.getState().setAccessToken(fresh)
       return rawRequest(method, path, body, false)
     }
     useAuthStore.getState().logout()
@@ -82,5 +112,9 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
 export const get = <T = unknown>(path: string) => api<T>('GET', path)
 export const post = <T = unknown>(path: string, body?: unknown, idem?: string) =>
   api<T>('POST', idem ? path + (path.includes('?') ? '&' : '?') + '_idem=' + idem : path, body)
+
+export function armAutoRefresh(accessToken: string) {
+  scheduleProactiveRefresh(accessToken)
+}
 
 export type { ApiClientError }

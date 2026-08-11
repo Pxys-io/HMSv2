@@ -54,6 +54,18 @@ def patient_register(
         full_name=body.full_name,
     )
     db.add(account)
+    db.flush()
+    from app.models.identity import PatientProfile
+    from app.services.sequences import next_patient_code
+
+    db.add(
+        PatientProfile(
+            code=next_patient_code(db),
+            account_id=account.id,
+            full_name=body.full_name,
+            phone=body.phone or "",
+        )
+    )
     db.commit()
 
     tokens = auth_service.issue_tokens(

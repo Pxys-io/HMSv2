@@ -43,9 +43,9 @@ class Settings(BaseSettings):
     CSRF_COOKIE_NAME: str = "hmsv2_csrf"
     COOKIE_SECURE: bool = False
     COOKIE_SAMESITE: str = "lax"
-    ACCESS_TOKEN_MINUTES_STAFF: int = 30
+    ACCESS_TOKEN_MINUTES_STAFF: int = 480
     REFRESH_TOKEN_DAYS_STAFF: int = 30
-    ACCESS_TOKEN_MINUTES_PATIENT: int = 30
+    ACCESS_TOKEN_MINUTES_PATIENT: int = 240
     REFRESH_TOKEN_DAYS_PATIENT: int = 60
 
     # Idempotency
