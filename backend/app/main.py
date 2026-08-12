@@ -19,6 +19,7 @@ from app.api.routes import (
     financial,
     medications,
     notifications,
+    ops,
     patients,
     printing,
     queue,
@@ -109,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(custom_fields.router)
     app.include_router(tags.router)
     app.include_router(tasks.router)
+    app.include_router(ops.router)
 
     return app
 

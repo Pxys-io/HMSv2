@@ -28,6 +28,7 @@ from app.models.identity import (
     RefreshToken,
     StaffUser,
 )
+from app.models.ops import LabOrder, Referral
 from app.models.queueing import QueueEntry
 from app.models.scheduling import Appointment, DoctorSchedule, ScheduleBlock, VisitType
 from app.models.tags import PatientTag
@@ -39,7 +40,9 @@ __all__ = [
     "Appointment",
     "Attachment",
     "CommunicationLogEntry",
+    "LabOrder",
     "PatientTag",
+    "Referral",
     "Task",
     "ChatConversation",
     "ChatMessage",
