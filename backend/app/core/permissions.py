@@ -33,6 +33,7 @@ PERMISSION_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("emr.prescribe", "Prescribe", "وصف الأدوية"),
         ("emr.attach", "Attachments", "المرفقات"),
         ("emr.labs", "Labs", "التحاليل"),
+        ("emr.share_doc", "Share documents", "مشاركة المستندات"),
     ],
     "billing": [
         ("billing.view", "View billing", "عرض الفواتير"),
@@ -113,6 +114,7 @@ SYSTEM_ROLE_MATRIX: dict[str, dict[str, list[str]]] = {
             "appointment.view", "appointment.create", "appointment.edit",
             "queue.view", "queue.call", "queue.start", "queue.complete",
             "emr.view", "emr.write", "emr.prescribe", "emr.attach", "emr.labs",
+            "emr.share_doc",
             "billing.view", "billing.discount",
             "inventory.view", "inventory.dispense",
             "ops.task", "ops.dashboard", "ops.referral", "ops.lab_order",

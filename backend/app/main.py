@@ -26,6 +26,7 @@ from app.api.routes import (
     printing,
     queue,
     scheduling,
+    shared_docs,
     tags,
     tasks,
     users,
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(duplicates.router)
     app.include_router(settings_router.public_router)
+    app.include_router(shared_docs.router)
     app.include_router(roles_router.router)
     app.include_router(custom_fields.router)
     app.include_router(tags.router)

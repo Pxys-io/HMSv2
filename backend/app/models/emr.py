@@ -44,6 +44,7 @@ class Visit(TimestampMixin, Base):
     notes_next_visit: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes_private: Mapped[str | None] = mapped_column(Text, nullable=True)
     follow_up_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    documents_shared: Mapped[list] = mapped_column(JSON, default=list)
     follow_up_due: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     recall_dismissed_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     custom_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
