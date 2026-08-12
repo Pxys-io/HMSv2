@@ -38,10 +38,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    url = config.get_main_option("sqlalchemy.url", "")
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"timeout": 15} if url.startswith("sqlite") else {},
     )
 
     with connectable.connect() as connection:
