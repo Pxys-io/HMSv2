@@ -23,6 +23,7 @@ const NAV: { to: string; key: string; perm: string; icon: string }[] = [
   { to: '/patients', key: 'patients', perm: 'patient.view', icon: '👤' },
   { to: '/cashier', key: 'cashier', perm: 'billing.view', icon: '💵' },
   { to: '/finance', key: 'finance', perm: 'billing.expense', icon: '🧾' },
+  { to: '/erp', key: 'erp', perm: 'ops.task', icon: '🗂️' },
   { to: '/recalls', key: 'recalls', perm: 'patient.view', icon: '⏰' },
   { to: '/chat', key: 'chat', perm: 'chat.view', icon: '💬' },
   { to: '/reports/daily', key: 'reports', perm: 'report.all', icon: '📊' },
@@ -59,6 +60,24 @@ export default function AppLayout() {
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
   const notifications = useNotifications()
+  const [openTasks, setOpenTasks] = useState(0)
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const rows = await get<{ items: unknown[] }>('/api/tasks?status=open')
+        if (active) setOpenTasks(rows.items.length)
+      } catch {
+        /* not authenticated yet */
+      }
+    }
+    load()
+    const timer = setInterval(load, 60000)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [])
 
   const nav = NAV.filter(
     (item) => user && (user.role === 'admin' || user.permissions?.includes(item.perm)),
@@ -90,6 +109,11 @@ export default function AppLayout() {
             >
               <span className="w-5 text-center">{item.icon}</span>
               {!collapsed && t(`nav.${item.key}`)}
+              {item.key === 'erp' && openTasks > 0 && (
+                <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {openTasks}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

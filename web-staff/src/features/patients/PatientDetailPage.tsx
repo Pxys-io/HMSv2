@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import { get, patch } from '../../api/client'
+import { get, patch, post, put } from '../../api/client'
 import { Button, Card, EmptyState, StatusBadge, inputClass } from '../../components/ui'
 import { DynamicFields } from '../admin/DynamicFields'
 
@@ -19,6 +19,7 @@ type Patient = {
   has_allergies: boolean
   has_chronic_conditions: boolean
   custom_data: Record<string, unknown> | null
+  tags: { id: number; name: string }[] | null
   no_show_count: number
   is_archived: boolean
 }
@@ -182,6 +183,26 @@ export default function PatientDetailPage() {
         </Card>
 
         <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Tags</h2>
+          <div className="mt-3 flex flex-wrap gap-1">
+            {(p.tags ?? []).map((t) => (
+              <span key={t.id} className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
+                {t.name}
+              </span>
+            ))}
+            {(!p.tags || p.tags.length === 0) && (
+              <span className="text-xs text-ink-400">No tags</span>
+            )}
+          </div>
+          <TagEditor patientId={id} current={(p.tags ?? []).map((t) => t.id)} onChanged={() => patient.refetch()} />
+        </Card>
+
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Activity</h2>
+          <ActivityFeed patientId={id} />
+        </Card>
+
+        <Card className="p-4">
           <h2 className="text-sm font-semibold text-ink-600">Invoices & files</h2>
           <div className="mt-3 space-y-2">
             {(invoices.data?.items ?? []).slice(0, 10).map((i) => (
@@ -201,8 +222,227 @@ export default function PatientDetailPage() {
           </p>
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Communications</h2>
+          <CommunicationsPanel patientId={id} />
+        </Card>
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Growth & labs</h2>
+          {p.birth_date ? (
+            <GrowthChart patientId={id} birthDate={p.birth_date} />
+          ) : (
+            <p className="text-sm text-ink-400">
+              Add a birth date to see WHO growth curves (0–5y).
+            </p>
+          )}
+          <LabTrends patientId={id} />
+        </Card>
+      </div>
     </div>
   )
 }
 
 
+
+type PatientTagRow = { id: number; name: string }
+
+function TagEditor({
+  patientId,
+  current,
+  onChanged,
+}: {
+  patientId: number
+  current: number[]
+  onChanged: () => void
+}) {
+  const tags = useQuery({
+    queryKey: ['tags'],
+    queryFn: () => get<{ items: PatientTagRow[] }>('/api/tags'),
+  })
+  const [sel, setSel] = useState('')
+  const [name, setName] = useState('')
+  return (
+    <div className="mt-3 flex gap-2">
+      <select className={inputClass + ' text-xs'} value={sel} onChange={(e) => setSel(e.target.value)}>
+        <option value="">Add tag…</option>
+        {tags.data?.items
+          .filter((t) => !current.includes(t.id))
+          .map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+      </select>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={async () => {
+          if (!sel) return
+          await put(`/api/patients/${patientId}/tags`, { tag_ids: [...current, Number(sel)] })
+          setSel('')
+          onChanged()
+        }}
+      >
+        +
+      </Button>
+      <input className={inputClass + ' w-28 text-xs'} placeholder="new tag" value={name} onChange={(e) => setName(e.target.value)} />
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={async () => {
+          if (!name.trim()) return
+          await post('/api/tags', { name: name.trim() })
+          setName('')
+          tags.refetch()
+        }}
+      >
+        create
+      </Button>
+    </div>
+  )
+}
+
+type ActivityRow = { id: number; type: string; actor_label: string | null; data: Record<string, unknown>; created_at: string | null }
+
+function ActivityFeed({ patientId }: { patientId: number }) {
+  const feed = useQuery({
+    queryKey: ['activity', patientId],
+    queryFn: () => get<{ items: ActivityRow[] }>(`/api/patients/${patientId}/activity?limit=15`),
+  })
+  if (!feed.data || feed.data.items.length === 0) {
+    return <p className="mt-3 text-sm text-ink-400">No activity yet</p>
+  }
+  return (
+    <div className="mt-3 space-y-1 text-xs">
+      {feed.data.items.map((e) => (
+        <div key={e.id} className="flex justify-between gap-2 border-b border-border py-1">
+          <span className="text-ink-600">
+            {e.type} {e.actor_label ? `· ${e.actor_label}` : ''}
+          </span>
+          <span className="shrink-0 text-ink-400">
+            {e.created_at ? new Date(e.created_at).toLocaleString().slice(0, 16) : ''}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CommunicationsPanel({ patientId }: { patientId: number }) {
+  const qc = useQueryClient()
+  const comms = useQuery({
+    queryKey: ['communications', patientId],
+    queryFn: () => get<{ items: { id: number; channel: string; summary: string; created_at: string | null }[] }>(`/api/patients/${patientId}/communications`),
+  })
+  const [summary, setSummary] = useState('')
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="flex gap-2">
+        <input
+          className={inputClass + ' text-xs'}
+          placeholder="Log a call / note…"
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+        />
+        <Button
+          size="sm"
+          onClick={async () => {
+            if (!summary.trim()) return
+            await post(`/api/patients/${patientId}/communications`, { channel: 'call', summary })
+            setSummary('')
+            qc.invalidateQueries({ queryKey: ['communications'] })
+          }}
+        >
+          Log
+        </Button>
+      </div>
+      {comms.data?.items.slice(0, 12).map((c) => (
+        <div key={c.id} className="flex justify-between gap-2 border-b border-border py-1 text-xs">
+          <span className="text-ink-600">
+            <span className="rounded bg-slate-100 px-1.5 py-0.5">{c.channel}</span> {c.summary}
+          </span>
+          <span className="shrink-0 text-ink-400">
+            {c.created_at ? new Date(c.created_at).toLocaleString().slice(0, 16) : ''}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function GrowthChart({ patientId }: { patientId: number; birthDate: string }) {
+  const growth = useQuery({
+    queryKey: ['growth', patientId],
+    queryFn: () =>
+      get<{
+        metric: string
+        unit: string
+        curves: { ages: number[]; low: number[]; median: number[]; high: number[] }
+        measurements: { date: string; value: number; age_months: number }[]
+      }>('/api/patients/' + patientId + '/growth?metric=weight'),
+  })
+  if (!growth.data) return null
+  const { curves } = growth.data
+  const W = 300
+  const H = 160
+  const pad = 10
+  const all = [...curves.low, ...curves.median, ...curves.high, ...growth.data.measurements.map((m) => m.value)]
+  const min = Math.min(...all)
+  const max = Math.max(...all)
+  const span = max - min || 1
+  const x = (age: number) => pad + (age / Math.max(curves.ages.at(-1) ?? 60, 1)) * (W - pad * 2)
+  const y = (v: number) => H - pad - ((v - min) / span) * (H - pad * 2)
+  const line = (vals: number[]) =>
+    curves.ages.map((a, i) => `${x(a)},${y(vals[i])}`).join(' ')
+  return (
+    <div className="mt-3">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+        <polyline points={line(curves.low)} fill="none" stroke="#94a3b8" strokeWidth={1} />
+        <polyline points={line(curves.median)} fill="none" stroke="#0d9488" strokeWidth={2} />
+        <polyline points={line(curves.high)} fill="none" stroke="#94a3b8" strokeWidth={1} />
+        {growth.data.measurements.map((m, i) => (
+          <circle key={i} cx={x(m.age_months)} cy={y(m.value)} r={3} fill="#dc2626" />
+        ))}
+      </svg>
+      <p className="text-xs text-ink-400">
+        Weight (kg) · WHO bands: −2SD / median / +2SD ·{' '}
+        {growth.data.measurements.length} measurement(s)
+      </p>
+    </div>
+  )
+}
+
+type LabTrend = {
+  name: string
+  unit: string | null
+  points: { date: string; value: number }[]
+}
+
+function LabTrends({ patientId }: { patientId: number }) {
+  const [name, setName] = useState('')
+  const trend = useQuery({
+    queryKey: ['lab-trend', patientId, name],
+    queryFn: () => get<LabTrend>(`/api/patients/${patientId}/lab-trends?name=${encodeURIComponent(name)}`),
+    enabled: name.trim().length >= 2,
+  })
+  return (
+    <div className="mt-4">
+      <div className="flex gap-2">
+        <input
+          className={inputClass + ' text-xs'}
+          placeholder="Lab trend, e.g. HbA1c"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </div>
+      {trend.data && (
+        <div className="mt-2 text-xs text-ink-600">
+          {trend.data.name} {trend.data.unit ? `(${trend.data.unit})` : ''}:{' '}
+          {trend.data.points.map((pt) => `${pt.value}@${pt.date}`).join(' → ') || 'no points'}
+        </div>
+      )}
+    </div>
+  )
+}

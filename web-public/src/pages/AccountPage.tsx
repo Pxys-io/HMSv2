@@ -15,6 +15,14 @@ type Appointment = {
 
 type Profile = { id: number; full_name: string; code: string }
 
+type SharedDocument = {
+  doc_key: string
+  visit_id: number
+  visit_date: string | null
+  patient_name: string | null
+  token: string
+}
+
 export default function AccountPage() {
   const patient = useAuthStore((s) => s.patient)
   const queryClient = useQueryClient()
@@ -29,11 +37,17 @@ export default function AccountPage() {
     queryFn: () => get<Profile[]>('/api/public/profiles'),
     enabled: Boolean(patient),
   })
+  const documents = useQuery({
+    queryKey: ['my-documents'],
+    queryFn: () => get<{ items: SharedDocument[] }>('/api/patient/documents'),
+    enabled: Boolean(patient),
+  })
 
   if (!patient) return <Navigate to="/login" replace />
 
   const upcoming = appointments.data?.upcoming ?? []
   const past = appointments.data?.past ?? []
+  const docs = documents.data?.items ?? []
 
   async function cancel(id: number) {
     await post(`/api/public/appointments/${id}/cancel`, { reason: 'cancelled from account' }, idemKey())
@@ -53,17 +67,16 @@ export default function AccountPage() {
                 {new Date(a.date + 'T12:00').toLocaleDateString()}
                 {a.start_time ? ` at ${a.start_time}` : ' — day booking'}
               </p>
-              <p className="font-mono text-xs text-ink-400">{a.booking_ref}</p>
+              <p className="font-mono text-xs text-ink-500">{a.booking_ref}</p>
             </div>
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs capitalize text-blue-700">
-              {a.status.replace('_', ' ')}
-            </span>
-            <button
-              onClick={() => cancel(a.id)}
-              className="rounded-md border border-border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-            >
-              Cancel
-            </button>
+            {a.status === 'booked' && (
+              <button
+                onClick={() => cancel(a.id)}
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-ink-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            )}
           </div>
         ))}
         {upcoming.length === 0 && <p className="text-sm text-ink-400">No upcoming visits</p>}
@@ -90,6 +103,32 @@ export default function AccountPage() {
         ))}
         <AddMember onDone={() => queryClient.invalidateQueries({ queryKey: ['my-profiles'] })} />
       </div>
+
+      <h2 className="mt-8 font-semibold text-ink-600">My documents</h2>
+      <div className="mt-3 space-y-3">
+        {docs.length === 0 && <p className="text-sm text-ink-500">No shared documents yet.</p>}
+        {docs.map((d) => (
+          <div
+            key={`${d.doc_key}-${d.visit_id}`}
+            className="flex items-center justify-between rounded-xl border border-border bg-surface p-4"
+          >
+            <div>
+              <p className="font-medium text-ink-900 capitalize">{d.doc_key}</p>
+              <p className="text-xs text-ink-500">
+                {d.patient_name} · {d.visit_date ? new Date(d.visit_date).toLocaleDateString() : ''}
+              </p>
+            </div>
+            <a
+              className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+              href={`/api/patient/documents/${d.doc_key}/${d.visit_id}?token=${encodeURIComponent(d.token)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open
+            </a>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -109,21 +148,25 @@ function AddMember({ onDone }: { onDone: () => void }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-sm text-brand-700 underline">
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-md border border-border px-3 py-1.5 text-sm text-ink-600 hover:bg-slate-50"
+      >
         + Add family member
       </button>
     )
   }
+
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
       <input
-        className="w-full rounded-md border border-border px-3 py-2 text-sm"
+        className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
         placeholder="Full name"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
       <input
-        className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+        className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
         placeholder="Phone"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}

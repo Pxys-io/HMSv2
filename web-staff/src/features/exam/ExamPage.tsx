@@ -78,6 +78,10 @@ function buildFields(draft: Record<string, unknown>): Record<string, unknown> {
   if (draft.follow_up_weeks !== undefined) {
     fields.follow_up_weeks = draft.follow_up_weeks === '' ? null : Number(draft.follow_up_weeks)
   }
+  const vitals = draft.vitals as Record<string, unknown> | undefined
+  if (vitals && Object.values(vitals).some((v) => v !== null && v !== undefined)) {
+    fields.vitals = vitals
+  }
   return fields
 }
 
@@ -345,6 +349,22 @@ export default function ExamPage() {
           </p>
         )}
 
+        <Card className="p-3">
+          <Field label="Vitals">
+            <div className="grid grid-cols-4 gap-2">
+              {(['bp_sys', 'bp_dia', 'hr', 'temp', 'spo2'] as const).map((key) => (
+                <VitalInput
+                  key={key}
+                  name={key}
+                  value={(draft.vitals as Record<string, number | null> | undefined)?.[key] ?? null}
+                  flag={vitalsFlag(draft, key)}
+                  onChange={(v) => setDraft({ ...draft, vitals: { ...(draft.vitals as Record<string, number | null> | undefined), [key]: v } })}
+                />
+              ))}
+            </div>
+          </Field>
+        </Card>
+
         {SECTIONS.map(([key, label]) => (
           <Card key={key} className="p-3">
             <Field label={label}>
@@ -373,7 +393,12 @@ export default function ExamPage() {
 
         <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold text-ink-600">Diagnoses</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <Icd10Picker
+            onPick={(label) => {
+              setFinalLabels((prev) => (prev ? prev + '\n' : '') + label)
+            }}
+          />
+          <div className="mt-2 grid grid-cols-2 gap-3">
             <Field label="Differential (one per line)">
               <textarea className={inputClass} rows={3} value={ddLabels} onChange={(e) => setDdLabels(e.target.value)} />
             </Field>
@@ -622,5 +647,101 @@ function Attachments({ visitId }: { visitId: number }) {
         {attachments.length === 0 && <p className="text-xs text-ink-400">No attachments yet</p>}
       </div>
     </Card>
+  )
+}
+
+function Icd10Picker({ onPick }: { onPick: (label: string) => void }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const { data } = useQuery({
+    queryKey: ['icd10', q],
+    queryFn: () => get<{ items: { code: string; label_en: string; label_ar: string | null }[] }>(`/api/icd10?q=${encodeURIComponent(q)}`),
+    enabled: q.trim().length >= 2,
+  })
+  return (
+    <div className="relative">
+      <input
+        className={inputClass}
+        placeholder="ICD-10 search…"
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value)
+          setOpen(true)
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && data && data.items.length > 0 && (
+        <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border bg-surface shadow-lg">
+          {data.items.map((item) => (
+            <button
+              key={item.code}
+              type="button"
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-brand-50"
+              onClick={() => {
+                onPick(`${item.label_en} (${item.code})`)
+                setQ('')
+                setOpen(false)
+              }}
+            >
+              <span className="font-mono text-brand-700">{item.code}</span>{' '}
+              {item.label_en} {item.label_ar ? <span dir="rtl" className="text-ink-400">{item.label_ar}</span> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const VITAL_LABELS: Record<string, string> = {
+  bp_sys: 'BP sys',
+  bp_dia: 'BP dia',
+  hr: 'HR',
+  temp: 'Temp',
+  spo2: 'SpO2',
+}
+
+function vitalsFlag(
+  draft: Record<string, unknown>,
+  key: string
+): 'low' | 'high' | 'normal' | null {
+  const vitals = draft.vitals as Record<string, unknown> | undefined
+  const value = vitals?.[key]
+  if (value === null || value === undefined) return null
+  const flag = vitals?.[`${key}_flag`]
+  return flag === 'low' || flag === 'high' ? flag : 'normal'
+}
+
+function VitalInput({
+  name,
+  value,
+  flag,
+  onChange,
+}: {
+  name: string
+  value: number | null
+  flag: 'low' | 'high' | 'normal' | null
+  onChange: (v: number | null) => void
+}) {
+  const cls =
+    flag === 'high'
+      ? ' border-red-400 bg-red-50'
+      : flag === 'low'
+        ? ' border-amber-400 bg-amber-50'
+        : ''
+  return (
+    <label className="block text-xs text-ink-600">
+      {VITAL_LABELS[name] ?? name}
+      <input
+        type="number"
+        step="0.1"
+        className={inputClass + ' mt-1' + cls}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+      />
+      {flag === 'high' && <span className="text-red-600">high</span>}
+      {flag === 'low' && <span className="text-amber-600">low</span>}
+    </label>
   )
 }
