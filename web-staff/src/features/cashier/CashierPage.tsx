@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { get, post } from '../../api/client'
+import { get, patch, post } from '../../api/client'
 import { Button, Card, EmptyState, StatusBadge, inputClass } from '../../components/ui'
 
 type UninvoicedVisit = {
@@ -24,14 +24,22 @@ type Invoice = {
   net_paid: number
   remaining: number
   status: string
-  items: { id: number; description: string; unit_price: number; qty: number }[]
+  items: { id: number; description: string; unit_price: number; qty: number; line_total: number }[]
+  subtotal: number
   payments: { id: number; amount: number; method: string; is_refund: boolean }[]
   discounts: { id: number; kind: string; value: number }[]
   syndicate_due: number
 }
 
+type BillingPermissions = {
+  role: string
+  cashier_can_adjust_pricing: boolean
+  discount_cap_secretary_pct: number
+}
+
 export default function CashierPage() {
   const [payTarget, setPayTarget] = useState<Invoice | null>(null)
+  const [itemsTarget, setItemsTarget] = useState<Invoice | null>(null)
   const queryClient = useQueryClient()
 
   const uninvoiced = useQuery({
@@ -45,6 +53,11 @@ export default function CashierPage() {
     queryClient.invalidateQueries({ queryKey: ['uninvoiced'] })
     queryClient.invalidateQueries({ queryKey: ['invoices'] })
   }
+
+  const permissions = useQuery({
+    queryKey: ['billing-permissions'],
+    queryFn: () => get<BillingPermissions>('/api/billing/permissions'),
+  })
 
   const invoices = useQuery({
     queryKey: ['invoices'],
@@ -125,6 +138,9 @@ export default function CashierPage() {
                 <p className="text-xs text-ink-400">remaining {inv.remaining.toFixed(2)}</p>
               </div>
               <StatusBadge status={inv.status} />
+              <Button size="sm" variant="secondary" onClick={() => setItemsTarget(inv)}>
+                Items
+              </Button>
               <Button onClick={() => setPayTarget(inv)} disabled={inv.remaining <= 0}>
                 Pay
               </Button>
@@ -141,6 +157,130 @@ export default function CashierPage() {
           onPay={recordPayment}
         />
       )}
+      {itemsTarget && (
+        <ItemsModal
+          invoice={itemsTarget}
+          canAdjust={permissions.data?.cashier_can_adjust_pricing ?? false}
+          onClose={() => setItemsTarget(null)}
+          onChanged={() => queryClient.invalidateQueries({ queryKey: ['invoices'] })}
+        />
+      )}
+    </div>
+  )
+}
+
+function ItemsModal({
+  invoice,
+  canAdjust,
+  onClose,
+  onChanged,
+}: {
+  invoice: Invoice
+  canAdjust: boolean
+  onClose: () => void
+  onChanged: () => void
+}) {
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [priceText, setPriceText] = useState('')
+  const [qtyText, setQtyText] = useState('')
+  const [error, setError] = useState('')
+
+  async function save(itemId: number) {
+    const payload: Record<string, number> = {}
+    if (priceText !== '') payload.unit_price = Number(priceText)
+    if (qtyText !== '') payload.qty = Number(qtyText)
+    if (!Object.keys(payload).length) {
+      setEditingId(null)
+      return
+    }
+    try {
+      await patch(`/api/invoices/${invoice.id}/items/${itemId}`, payload)
+      setEditingId(null)
+      onChanged()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'failed')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-6" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-xl border border-border bg-surface p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-ink-900">Invoice items</h2>
+            <p className="font-mono text-xs text-ink-400">{invoice.number}</p>
+          </div>
+          <button onClick={onClose} className="text-ink-400 hover:text-ink-600" aria-label="Close">
+            ✕
+          </button>
+        </div>
+        {error && <p className="mb-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+        {!canAdjust && (
+          <p className="mb-3 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
+            Price editing is disabled for cashiers — an admin can enable it in Settings.
+          </p>
+        )}
+        <div className="space-y-2">
+          {invoice.items.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 rounded-md border border-border p-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-ink-900">{item.description}</span>
+              {editingId === item.id ? (
+                <>
+                  <input
+                    className={inputClass + ' w-24'}
+                    type="number"
+                    step="0.01"
+                    placeholder="Price"
+                    value={priceText}
+                    onChange={(e) => setPriceText(e.target.value)}
+                    autoFocus
+                  />
+                  <input
+                    className={inputClass + ' w-20'}
+                    type="number"
+                    step="0.01"
+                    placeholder="Qty"
+                    value={qtyText}
+                    onChange={(e) => setQtyText(e.target.value)}
+                  />
+                  <Button size="sm" onClick={() => void save(item.id)}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                    ✕
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="font-mono text-ink-600">
+                    {item.qty} × {item.unit_price.toFixed(2)} = {item.line_total.toFixed(2)}
+                  </span>
+                  {canAdjust && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingId(item.id)
+                        setPriceText(String(item.unit_price))
+                        setQtyText(String(item.qty))
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-4 border-t border-border pt-3 text-sm">
+          <span className="text-ink-600">Subtotal: <b className="font-mono">{invoice.subtotal.toFixed(2)}</b></span>
+          <span className="text-ink-600">Patient due: <b className="font-mono">{invoice.patient_due.toFixed(2)}</b></span>
+        </div>
+      </div>
     </div>
   )
 }

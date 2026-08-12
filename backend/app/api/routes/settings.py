@@ -33,6 +33,7 @@ KNOWN_KEYS = {
     "clinic.name", "clinic.address", "clinic.phones", "clinic.country_code",
     "clinic.timezone", "clinic.hours_text", "clinic.location_url",
     "billing.currency", "billing.discount_cap_secretary_pct",
+    "billing.cashier_can_adjust_pricing",
     "booking.horizon_days", "reminder.whatsapp_template_ar",
     "reminder.whatsapp_template_en", "public.about", "public.services",
 }

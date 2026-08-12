@@ -41,6 +41,7 @@ DEFAULT_SETTINGS = {
     "clinic.location_url": "",
     "billing.currency": "EGP",
     "billing.discount_cap_secretary_pct": 10,
+    "billing.cashier_can_adjust_pricing": False,
     "booking.horizon_days": 30,
     "reminder.whatsapp_template_ar": (
         "أهلاً {patient_name}، معاك عيادة {clinic_name}. بنفتكرك بموعدك مع "

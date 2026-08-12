@@ -373,3 +373,79 @@ def test_reports_and_csv(client, clinic):
     assert csv_resp.status_code == 200
     assert "text/csv" in csv_resp.headers["content-type"]
     assert "date,method,net" in csv_resp.text
+
+
+def test_cashier_price_adjust_permission_gate(client, clinic):
+    admin = admin_headers(client)
+    visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
+    invoice = _invoice_for_visit(client, admin, visit_id)
+    item_id = invoice["items"][0]["id"]
+
+    sec_token = client.post(
+        "/api/auth/login", json={"email": "sec@example.com", "password": "passw0rd"},
+        headers=csrf_headers(client),
+    ).json()["access_token"]
+    sec = {"Authorization": f"Bearer {sec_token}"}
+
+    # setting off by default -> cashier denied
+    denied = client.patch(
+        f"/api/invoices/{invoice['id']}/items/{item_id}",
+        json={"unit_price": 250},
+        headers=sec,
+    )
+    assert denied.status_code == 403
+
+    # admin always allowed
+    adjusted = client.patch(
+        f"/api/invoices/{invoice['id']}/items/{item_id}",
+        json={"unit_price": 250},
+        headers=admin,
+    )
+    assert adjusted.status_code == 200
+    body = adjusted.json()
+    assert body["subtotal"] == 250.0
+    assert body["patient_due"] == 250.0
+    assert body["items"][0]["unit_price"] == 250.0
+
+    # admin enables the setting -> cashier allowed
+    client.put("/api/settings", json={"billing.cashier_can_adjust_pricing": True}, headers=admin)
+    ok = client.patch(
+        f"/api/invoices/{invoice['id']}/items/{item_id}",
+        json={"qty": 2},
+        headers=sec,
+    )
+    assert ok.status_code == 200
+    assert ok.json()["subtotal"] == 500.0
+    client.put("/api/settings", json={"billing.cashier_can_adjust_pricing": False}, headers=admin)
+
+    # frozen after payment
+    paid = client.post(
+        f"/api/invoices/{invoice['id']}/payments",
+        json={"amount": 500, "method": "cash"},
+        headers={**admin, "Idempotency-Key": "adj-1"},
+    )
+    assert paid.status_code == 200
+    frozen = client.patch(
+        f"/api/invoices/{invoice['id']}/items/{item_id}",
+        json={"unit_price": 100},
+        headers=admin,
+    )
+    assert frozen.status_code == 409
+
+
+def test_billing_permissions_endpoint(client, clinic):
+    admin = admin_headers(client)
+    sec_token = client.post(
+        "/api/auth/login", json={"email": "sec@example.com", "password": "passw0rd"},
+        headers=csrf_headers(client),
+    ).json()["access_token"]
+
+    sec_perm = client.get(
+        "/api/billing/permissions", headers={"Authorization": f"Bearer {sec_token}"}
+    ).json()
+    assert sec_perm["cashier_can_adjust_pricing"] is False
+    assert sec_perm["discount_cap_secretary_pct"] == 10
+
+    admin_perm = client.get("/api/billing/permissions", headers=admin).json()
+    assert admin_perm["cashier_can_adjust_pricing"] is True

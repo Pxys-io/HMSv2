@@ -347,6 +347,80 @@ def refund(
     return invoice
 
 
+def adjust_item(
+    db: Session,
+    audit_db: Session,
+    *,
+    invoice: Invoice,
+    item: InvoiceItem,
+    unit_price: float | None,
+    qty: float | None,
+    description: str | None,
+    actor: StaffUser,
+    correlation_id: str,
+    ip: str | None,
+) -> Invoice:
+    """Cashier flexibility: edit an item's price/qty/description on an unpaid
+    invoice. Admin always allowed; cashiers only when the admin setting
+    `billing.cashier_can_adjust_pricing` is enabled."""
+    if invoice.status in ("cancelled", "refunded") or invoice.paid_total > 0:
+        raise AppError("CONFLICT", "invoice is frozen after payments (M5)")
+    _lock_invoice(db, invoice.id)
+
+    if actor.role != "admin":
+        from app.services.settings import get_setting
+
+        allowed = bool(get_setting(db, "billing.cashier_can_adjust_pricing", False))
+        if not allowed:
+            raise AppError(
+                "FORBIDDEN",
+                "price adjustment is disabled; ask an admin to enable it in Settings",
+            )
+
+    before = {
+        "unit_price": float(item.unit_price),
+        "qty": float(item.qty),
+        "description": item.description,
+        "subtotal": float(invoice.subtotal),
+    }
+    if unit_price is not None:
+        if unit_price < 0:
+            raise AppError("VALIDATION", "unit_price cannot be negative")
+        item.unit_price = round(unit_price, 2)
+    if qty is not None:
+        if qty <= 0:
+            raise AppError("VALIDATION", "qty must be positive")
+        item.qty = round(qty, 2)
+    if description is not None and description.strip():
+        item.description = description.strip()[:300]
+    item.line_total = round(float(item.qty) * float(item.unit_price), 2)
+
+    # recompute totals (discount and syndicate due untouched)
+    items = db.scalars(
+        select(InvoiceItem).where(InvoiceItem.invoice_id == invoice.id)
+    ).all()
+    invoice.subtotal = round(sum(float(i.line_total) for i in items), 2)
+    invoice.total = round(invoice.subtotal - float(invoice.discount_total), 2)
+    invoice.patient_due = round(max(invoice.total - float(invoice.syndicate_due), 0), 2)
+
+    with audit.audited_action(
+        audit_db,
+        actor_type="staff", actor_id=actor.id, actor_label=actor.email,
+        action="invoice.item_adjust", correlation_id=correlation_id,
+        entity_type="invoice_item", entity_id=str(item.id),
+        before=before,
+        after={
+            "unit_price": float(item.unit_price),
+            "qty": float(item.qty),
+            "subtotal": float(invoice.subtotal),
+            "patient_due": float(invoice.patient_due),
+        },
+        ip=ip,
+    ):
+        db.commit()
+    return invoice
+
+
 def cancel_and_reissue(
     db: Session,
     audit_db: Session,

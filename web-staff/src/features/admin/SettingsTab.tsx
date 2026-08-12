@@ -89,6 +89,22 @@ export function SettingsTab() {
       </Card>
 
       <Card className="space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-ink-600">Cashier permissions</h2>
+        <label className="flex items-center gap-2 text-sm text-ink-600">
+          <input
+            type="checkbox"
+            checked={Boolean(values['billing.cashier_can_adjust_pricing'])}
+            onChange={(e) => set('billing.cashier_can_adjust_pricing', e.target.checked)}
+          />
+          Allow cashiers to adjust invoice prices (flexibility)
+        </label>
+        <p className="text-xs text-ink-400">
+          When enabled, secretaries can edit item prices, quantities, and
+          descriptions on unpaid invoices. Admins can always adjust.
+        </p>
+      </Card>
+
+      <Card className="space-y-3 p-4">
         <h2 className="text-sm font-semibold text-ink-600">WhatsApp reminder templates</h2>
         <textarea className={inputClass} rows={3} placeholder="AR template" value={str('reminder.whatsapp_template_ar')} onChange={(e) => set('reminder.whatsapp_template_ar', e.target.value)} />
         <textarea className={inputClass} rows={3} placeholder="EN template" value={str('reminder.whatsapp_template_en')} onChange={(e) => set('reminder.whatsapp_template_en', e.target.value)} />

@@ -460,6 +460,47 @@ def add_invoice_item(
     return billing_service.invoice_payload(db, invoice)
 
 
+@router.patch("/invoices/{invoice_id}/items/{item_id}")
+def adjust_invoice_item(
+    invoice_id: int,
+    item_id: int,
+    body: dict,
+    current: cashier,
+    request: Request,
+    db: DbDep,
+    audit_db: AuditDbDep,
+):
+    """Cashier price flexibility: edit unit price / qty / description on an
+    unpaid invoice. Admin always; cashiers only with the admin setting on."""
+    invoice = _get_invoice(db, invoice_id)
+    item = db.get(InvoiceItem, item_id)
+    if item is None or item.invoice_id != invoice.id:
+        raise AppError("NOT_FOUND", "invoice item not found")
+    updated = billing_service.adjust_item(
+        db, audit_db, invoice=invoice, item=item,
+        unit_price=body.get("unit_price"),
+        qty=body.get("qty"),
+        description=body.get("description"),
+        actor=current,
+        correlation_id=get_request_id(request),
+        ip=request.client.host if request.client else None,
+    )
+    return billing_service.invoice_payload(db, updated)
+
+
+@router.get("/billing/permissions")
+def billing_permissions(current: cashier_or_doctor, db: DbDep):
+    """What the logged-in staff member may do with prices — drives the UI."""
+    from app.services.settings import get_setting
+
+    return {
+        "role": current.role,
+        "cashier_can_adjust_pricing": current.role == "admin"
+        or bool(get_setting(db, "billing.cashier_can_adjust_pricing", False)),
+        "discount_cap_secretary_pct": get_setting(db, "billing.discount_cap_secretary_pct", 10),
+    }
+
+
 @router.post("/invoices/{invoice_id}/discount")
 def add_discount(
     invoice_id: int,
