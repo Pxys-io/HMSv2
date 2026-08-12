@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchBlob, get, patch, post, put, uploadFile } from '../../api/client'
 import { toast } from 'sonner'
-import { Button, Card, Field, Modal, inputClass } from '../../components/ui'
+import { Button, Card, Field, Modal, StatusBadge, inputClass } from '../../components/ui'
 import { CameraCapture } from '../../components/pwa'
 
 type VisitTypeRow = {
@@ -30,7 +30,12 @@ type Visit = {
   imaging: string | null
   plan: string | null
   notes_next_visit: string | null
+  notes_private: string | null
   follow_up_weeks: number | null
+  follow_up_due: string | null
+  started_at: string | null
+  ended_at: string | null
+  doctor_id: number | null
   diagnoses: { kind: string; label: string; icd10_code: string | null }[]
   prescription: { id: number; notes: string | null; items: PrescriptionItem[] } | null
   attachments: { id: number; kind: string; title: string | null; mime: string; scan_status: string }[]
@@ -45,6 +50,8 @@ type PrescriptionItem = {
   frequency: string
   duration: string
   route: string | null
+  instructions: string | null
+  quantity: string | null
 }
 
 type TimelineCard = {
@@ -246,9 +253,14 @@ export default function ExamPage() {
 
   async function complete() {
     if (!visit.data) return
-    await post(`/api/visits/${visit.data.id}/complete`, {}, crypto.randomUUID())
-    queryClient.invalidateQueries({ queryKey: ['visit'] })
-    navigate(`/patients/${profileId}`)
+    try {
+      await post(`/api/visits/${visit.data.id}/complete`, {}, crypto.randomUUID())
+      toast.success('Visit completed')
+      queryClient.invalidateQueries({ queryKey: ['visit'] })
+      navigate(`/patients/${profileId}`)
+    } catch {
+      /* toast already shown */
+    }
   }
 
   async function saveDiagnoses() {
@@ -357,6 +369,9 @@ export default function ExamPage() {
           </div>
         </div>
 
+        {readOnly ? (
+          <VisitSummary visit={v} />
+        ) : (
         <div className={`space-y-4 ${mobileTab === 'rx' ? 'hidden' : 'block'} lg:block`}>
         {v.status === 'completed' && (
           <p className="rounded-md bg-green-50 p-2 text-sm text-green-800">
@@ -434,6 +449,7 @@ export default function ExamPage() {
           )}
         </Card>
         </div>
+        )}
 
         <div className={`space-y-4 ${mobileTab === 'rx' ? 'block' : 'hidden'} lg:block`}>
         <Card className="p-3">
@@ -508,7 +524,7 @@ export default function ExamPage() {
             onClick={() =>
               setRxDraft({
                 ...rxDraft,
-                items: [...rxDraft.items, { medication_id: null, free_text: '', dose: '', frequency: '', duration: '', route: '' }],
+                items: [...rxDraft.items, { medication_id: null, free_text: '', dose: '', frequency: '', duration: '', route: '', instructions: null, quantity: null }],
               })
             }
           >
@@ -643,8 +659,17 @@ function Timeline({ profileId }: { profileId: number }) {
   return (
     <div className="space-y-2">
       {cards.map((card) => (
-        <div key={card.id} className="rounded-md border border-border p-2 text-xs">
-          <p className="font-semibold text-ink-900">{card.date}</p>
+        <Link
+          key={card.id}
+          to={`/patients/${profileId}/exam?visit_id=${card.id}`}
+          className="block rounded-md border border-border p-2 text-xs hover:bg-slate-50"
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-ink-900">{card.date}</p>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] capitalize">
+              {card.status}
+            </span>
+          </div>
           <p className="text-ink-400">{card.doctor_name ?? '—'}</p>
           {typeof card.chief_complaint === 'string' && (
             <p className="mt-1 text-ink-600">{card.chief_complaint}</p>
@@ -655,7 +680,7 @@ function Timeline({ profileId }: { profileId: number }) {
           {typeof card.plan === 'string' && (
             <p className="mt-1 text-ink-600">Plan: {card.plan}</p>
           )}
-        </div>
+        </Link>
       ))}
     </div>
   )
@@ -894,4 +919,212 @@ async function printRx(visitId: number) {
   } catch {
     /* toast already shown by the api client */
   }
+}
+
+const SUMMARY_SECTIONS: [keyof Visit, string][] = [
+  ['chief_complaint', 'Chief complaint'],
+  ['history', 'History'],
+  ['clinical_exam', 'Clinical exam'],
+  ['findings', 'Findings'],
+  ['labs', 'Labs'],
+  ['imaging', 'Imaging'],
+  ['plan', 'Plan'],
+  ['notes_next_visit', 'Notes for next visit'],
+]
+
+function VisitSummary({ visit }: { visit: Visit }) {
+  const vitals = (visit.vitals ?? {}) as Record<string, unknown>
+  const differential = visit.diagnoses.filter((d) => d.kind === 'differential')
+  const final = visit.diagnoses.filter((d) => d.kind === 'final')
+  const sections = SUMMARY_SECTIONS.filter(
+    ([key]) => typeof visit[key] === 'string' && (visit[key] as string).trim() !== ''
+  )
+  const vitalKeys = Object.keys(vitals).filter((k) => !k.endsWith('_flag'))
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <p className="text-lg font-bold text-ink-900">{visit.patient?.full_name ?? 'Patient'}</p>
+            <p className="font-mono text-xs text-ink-400">{visit.patient?.code ?? ''}</p>
+          </div>
+          <div className="flex-1" />
+          <StatusBadge status={visit.status} />
+          <Button size="sm" variant="secondary" onClick={() => void printRx(visit.id)}>
+            Print Rx
+          </Button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-4 text-xs text-ink-500">
+          <span>Started: {visit.started_at ? new Date(visit.started_at).toLocaleString() : '—'}</span>
+          {visit.ended_at && <span>Ended: {new Date(visit.ended_at).toLocaleString()}</span>}
+          {visit.follow_up_due && <span>Follow-up due: {visit.follow_up_due}</span>}
+        </div>
+      </Card>
+
+      {vitalKeys.length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Vitals</h2>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {vitalKeys.map((k) => {
+              const flag = vitals[`${k}_flag`]
+              const cls =
+                flag === 'high'
+                  ? 'text-red-600'
+                  : flag === 'low'
+                    ? 'text-amber-600'
+                    : 'text-ink-900'
+              return (
+                <div key={k} className="rounded-lg bg-slate-50 p-2 text-center">
+                  <p className="text-xs text-ink-500">{k}</p>
+                  <p className={`font-mono text-sm font-semibold ${cls}`}>
+                    {String(vitals[k] ?? '—')}
+                    {flag === 'high' && ' ↑'}
+                    {flag === 'low' && ' ↓'}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {sections.map(([key, label]) => (
+        <Card key={key} className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">{label}</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-ink-800">{String(visit[key])}</p>
+        </Card>
+      ))}
+
+      {(differential.length > 0 || final.length > 0) && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Diagnoses</h2>
+          {differential.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-amber-700">Differential</p>
+              <ul className="list-inside list-disc text-sm text-ink-800">
+                {differential.map((d, i) => (
+                  <li key={i}>
+                    {d.label}
+                    {d.icd10_code ? <span className="font-mono text-xs text-ink-400"> ({d.icd10_code})</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {final.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-brand-700">Final</p>
+              <ul className="list-inside list-disc text-sm text-ink-800">
+                {final.map((d, i) => (
+                  <li key={i}>
+                    {d.label}
+                    {d.icd10_code ? <span className="font-mono text-xs text-ink-400"> ({d.icd10_code})</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {visit.prescription && visit.prescription.items.length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Prescription</h2>
+          <table className="mt-2 w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs text-ink-500">
+                <th className="py-1">Drug</th>
+                <th>Dose</th>
+                <th>Frequency</th>
+                <th>Duration</th>
+                <th>Route</th>
+                <th>Instructions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visit.prescription.items.map((item) => (
+                <tr key={item.id} className="border-b border-border">
+                  <td className="py-1 font-medium">{item.free_text ?? 'med'}</td>
+                  <td>{item.dose}</td>
+                  <td>{item.frequency}</td>
+                  <td>{item.duration}</td>
+                  <td>{item.route ?? '—'}</td>
+                  <td>{item.instructions ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {visit.prescription.notes && (
+            <p className="mt-2 text-sm text-ink-600">{visit.prescription.notes}</p>
+          )}
+        </Card>
+      )}
+
+      {visit.attachments.length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Attachments</h2>
+          <AttachmentsGrid attachments={visit.attachments} />
+        </Card>
+      )}
+
+      {sections.length === 0 &&
+        vitalKeys.length === 0 &&
+        differential.length === 0 &&
+        final.length === 0 &&
+        (!visit.prescription || visit.prescription.items.length === 0) &&
+        visit.attachments.length === 0 && (
+          <Card className="p-4">
+            <p className="text-sm text-ink-400">This visit has no recorded data.</p>
+          </Card>
+        )}
+    </div>
+  )
+}
+
+function AttachmentsGrid({
+  attachments,
+}: {
+  attachments: { id: number; kind: string; title: string | null; mime: string }[]
+}) {
+  const [thumbs, setThumbs] = useState<Record<number, string>>({})
+  useEffect(() => {
+    let active = true
+    for (const a of attachments) {
+      if (!a.mime?.startsWith('image/') || thumbs[a.id]) continue
+      fetchBlob(`/api/files/${a.id}?thumb=true`)
+        .then((blob) => {
+          if (active) setThumbs((prev) => ({ ...prev, [a.id]: URL.createObjectURL(blob) }))
+        })
+        .catch(() => {
+          /* not scanned yet */
+        })
+    }
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachments])
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {attachments.map((a) => (
+        <a
+          key={a.id}
+          href={`/api/files/${a.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="w-24 overflow-hidden rounded-md border border-border"
+        >
+          {a.mime?.startsWith('image/') && thumbs[a.id] ? (
+            <img src={thumbs[a.id]} alt={a.title ?? a.kind} className="h-20 w-full object-cover" />
+          ) : (
+            <div className="flex h-20 items-center justify-center text-xs text-ink-400">
+              {a.mime === 'application/pdf' ? 'PDF' : 'FILE'}
+            </div>
+          )}
+          <p className="truncate px-1 py-0.5 text-[10px] capitalize text-ink-600">{a.kind}</p>
+        </a>
+      ))}
+    </div>
+  )
 }

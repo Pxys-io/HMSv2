@@ -113,13 +113,8 @@ export default function PatientDetailPage() {
           </span>
         )}
         <div className="flex-1" />
-        {openVisit && (
-          <Link to={`/patients/${id}/exam?entry=`}>
-            <Button>Continue open visit</Button>
-          </Link>
-        )}
-        <Link to={`/patients/${id}/exam`}>
-          <Button variant="secondary">New visit</Button>
+        <Link to={openVisit ? `/patients/${id}/exam?entry=` : `/patients/${id}/exam`}>
+          <Button>{openVisit ? 'Continue open visit' : 'Start new visit'}</Button>
         </Link>
       </div>
 
