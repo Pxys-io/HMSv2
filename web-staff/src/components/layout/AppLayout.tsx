@@ -22,6 +22,7 @@ const NAV: { to: string; key: string; perm: string; icon: string }[] = [
   { to: '/schedule', key: 'schedule', perm: 'queue.view', icon: '📆' },
   { to: '/patients', key: 'patients', perm: 'patient.view', icon: '👤' },
   { to: '/cashier', key: 'cashier', perm: 'billing.view', icon: '💵' },
+  { to: '/finance', key: 'finance', perm: 'billing.expense', icon: '🧾' },
   { to: '/recalls', key: 'recalls', perm: 'patient.view', icon: '⏰' },
   { to: '/chat', key: 'chat', perm: 'chat.view', icon: '💬' },
   { to: '/reports/daily', key: 'reports', perm: 'report.all', icon: '📊' },

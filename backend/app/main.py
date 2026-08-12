@@ -13,6 +13,7 @@ from app.api.routes import (
     csrf,
     custom_fields,
     doctors,
+    expenses,
     files,
     financial,
     medications,
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(notifications.router)
     app.include_router(audit_router.router)
     app.include_router(settings_router.router)
+    app.include_router(expenses.router)
     app.include_router(settings_router.public_router)
     app.include_router(roles_router.router)
     app.include_router(custom_fields.router)

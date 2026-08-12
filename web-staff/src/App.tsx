@@ -16,6 +16,7 @@ import CalendarPage from './features/calendar/CalendarPage'
 import CashierPage from './features/cashier/CashierPage'
 import ChatPage from './features/chat/ChatPage'
 import ExamPage from './features/exam/ExamPage'
+import FinancePage from './features/admin/FinancePage'
 import PatientDetailPage from './features/patients/PatientDetailPage'
 import PatientsPage from './features/patients/PatientsPage'
 import RecallsPage from './features/recalls/RecallsPage'
@@ -149,6 +150,14 @@ export default function App() {
             element={
               <RequireRole roles={['admin', 'secretary']}>
                 <CashierPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="finance"
+            element={
+              <RequireRole roles={['admin', 'secretary']}>
+                <FinancePage />
               </RequireRole>
             }
           />

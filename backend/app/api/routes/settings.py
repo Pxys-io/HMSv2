@@ -36,7 +36,9 @@ KNOWN_KEYS = {
     "billing.cashier_can_adjust_pricing",
     "billing.vat_rate_pct", "billing.vat_inclusive",
     "billing.vat_number", "billing.vat_exempt",
-    "booking.horizon_days", "reminder.whatsapp_template_ar",
+    "booking.horizon_days",
+    "petty_cash.opening_balance", "petty_cash.categories",
+    "reminder.whatsapp_template_ar",
     "reminder.whatsapp_template_en", "public.about", "public.services",
 }
 
