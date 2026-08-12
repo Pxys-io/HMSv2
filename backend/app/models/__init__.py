@@ -29,6 +29,15 @@ from app.models.identity import (
     RefreshToken,
     StaffUser,
 )
+from app.models.inventory import (
+    Product,
+    ProductCategory,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    StockLevel,
+    StockMovement,
+    Supplier,
+)
 from app.models.labs import LabResult
 from app.models.ops import LabOrder, Referral
 from app.models.queueing import QueueEntry
@@ -47,7 +56,14 @@ __all__ = [
     "LabOrder",
     "LabResult",
     "PatientTag",
+    "Product",
+    "ProductCategory",
+    "PurchaseOrder",
+    "PurchaseOrderItem",
     "Referral",
+    "StockLevel",
+    "StockMovement",
+    "Supplier",
     "Task",
     "ChatConversation",
     "ChatMessage",
