@@ -34,6 +34,11 @@ class StaffUser(TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     role_id: Mapped[int | None] = mapped_column(ForeignKey("role.id"), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    base_salary: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    allowances: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    deductions: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    tax_pct: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
+    social_insurance: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
 

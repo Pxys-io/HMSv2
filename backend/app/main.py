@@ -19,6 +19,7 @@ from app.api.routes import (
     expenses,
     files,
     financial,
+    hr,
     icd10,
     inventory,
     labs,
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(financial.router)
     app.include_router(icd10.router)
     app.include_router(inventory.router)
+    app.include_router(hr.router)
     app.include_router(labs.router)
     app.include_router(printing.router)
     app.include_router(chat.staff_router)

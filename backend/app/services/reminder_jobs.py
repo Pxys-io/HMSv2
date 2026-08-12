@@ -85,6 +85,9 @@ def _reminder_text(db: Session, appointment: Appointment, profile: PatientProfil
 
 def run_once() -> dict:
     """One sweep: SMS + email reminders for tomorrow's appointments."""
+    from app.services.hr import notify_absent_staff
+
+    notify_absent_staff(SessionLocal())
     result = {"sms": 0, "email": 0}
     with SessionLocal() as db:
         gateway = str(get_setting(db, "reminder.sms_gateway_url", "") or "")

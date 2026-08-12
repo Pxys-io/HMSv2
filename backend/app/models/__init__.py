@@ -20,6 +20,12 @@ from app.models.emr import (
     VisitDiagnosis,
 )
 from app.models.expense import Expense, PettyCashTransaction
+from app.models.hr import (
+    AttendanceRecord,
+    LeaveRequest,
+    PayrollLineItem,
+    PayrollRun,
+)
 from app.models.icd10 import Icd10Code
 from app.models.identity import (
     Doctor,
@@ -49,12 +55,16 @@ __all__ = [
     "ActivityEvent",
     "Expense",
     "Appointment",
+    "AttendanceRecord",
     "Attachment",
     "CommunicationLogEntry",
     "DuplicateGroup",
     "Icd10Code",
     "LabOrder",
     "LabResult",
+    "LeaveRequest",
+    "PayrollLineItem",
+    "PayrollRun",
     "PatientTag",
     "Product",
     "ProductCategory",
