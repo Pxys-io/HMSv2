@@ -14,6 +14,7 @@ from app.api.routes import (
     custom_fields,
     dashboard,
     doctors,
+    duplicates,
     expenses,
     files,
     financial,
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_router.router)
     app.include_router(expenses.router)
     app.include_router(dashboard.router)
+    app.include_router(duplicates.router)
     app.include_router(settings_router.public_router)
     app.include_router(roles_router.router)
     app.include_router(custom_fields.router)

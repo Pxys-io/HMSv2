@@ -67,7 +67,8 @@ def create_referral(
     to_text = str(body.get("to_text", "")).strip()
     if not to_text:
         raise AppError("VALIDATION", "to_text is required")
-    if not db.get(PatientProfile, body.get("patient_profile_id")):
+    pid = body.get("patient_profile_id")
+    if not pid or not db.get(PatientProfile, pid):
         raise AppError("VALIDATION", "patient_profile_id is required")
     referral = Referral(
         patient_profile_id=body["patient_profile_id"],
@@ -177,7 +178,8 @@ def create_lab_order(
         status="pending",
         notes=body.get("notes"),
     )
-    if not db.get(PatientProfile, body.get("patient_profile_id")):
+    pid = body.get("patient_profile_id")
+    if not pid or not db.get(PatientProfile, pid):
         raise AppError("VALIDATION", "patient_profile_id is required")
     db.add(order)
     with audit.audited_action(

@@ -40,6 +40,7 @@ __all__ = [
     "Appointment",
     "Attachment",
     "CommunicationLogEntry",
+    "DuplicateGroup",
     "LabOrder",
     "PatientTag",
     "Referral",
