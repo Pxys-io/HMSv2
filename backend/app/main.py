@@ -9,6 +9,7 @@ from app.api.public import booking as public_booking
 from app.api.public import profiles as public_profiles
 from app.api.routes import (
     appointments,
+    bulk,
     chat,
     csrf,
     custom_fields,
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.public_router)
     app.include_router(notifications.router)
     app.include_router(audit_router.router)
+    app.include_router(bulk.router)
     app.include_router(settings_router.router)
     app.include_router(expenses.router)
     app.include_router(dashboard.router)
