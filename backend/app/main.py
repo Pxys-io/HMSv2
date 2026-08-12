@@ -24,6 +24,7 @@ from app.api.routes import (
     queue,
     scheduling,
     tags,
+    tasks,
     users,
 )
 from app.api.routes import (
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(roles_router.router)
     app.include_router(custom_fields.router)
     app.include_router(tags.router)
+    app.include_router(tasks.router)
 
     return app
 

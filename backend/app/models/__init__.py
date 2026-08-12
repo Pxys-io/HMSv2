@@ -31,6 +31,7 @@ from app.models.identity import (
 from app.models.queueing import QueueEntry
 from app.models.scheduling import Appointment, DoctorSchedule, ScheduleBlock, VisitType
 from app.models.tags import PatientTag
+from app.models.tasks import Task
 
 __all__ = [
     "ActivityEvent",
@@ -39,6 +40,7 @@ __all__ = [
     "Attachment",
     "CommunicationLogEntry",
     "PatientTag",
+    "Task",
     "ChatConversation",
     "ChatMessage",
     "Discount",
