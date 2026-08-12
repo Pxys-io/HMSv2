@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm, require_role
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.models.billing import (
@@ -42,8 +42,8 @@ from app.services.settings import clinic_timezone
 
 router = APIRouter(prefix="/api", tags=["financial"])
 admin = Annotated[StaffUser, Depends(require_role("admin"))]
-cashier = Annotated[StaffUser, Depends(require_role("admin", "secretary"))]
-cashier_or_doctor = Annotated[StaffUser, Depends(require_role("admin", "secretary", "doctor"))]
+cashier = Annotated[StaffUser, Depends(require_perm("billing.invoice", "billing.payment"))]
+cashier_or_doctor = Annotated[StaffUser, Depends(require_perm("billing.view"))]
 
 
 def _replay(

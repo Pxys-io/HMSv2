@@ -12,6 +12,7 @@ from app.db.session import SessionLocal
 from app.models.billing import Invoice
 from app.models.identity import Doctor, PatientProfile, StaffUser
 from app.models.scheduling import Appointment, DoctorSchedule, VisitType
+from app.services.roles import role_id as _rid
 from tests.conftest import csrf_headers
 
 TODAY = date.today()
@@ -23,7 +24,7 @@ def clinic(client):
     doc_user = StaffUser(
         email=f"fin-{secrets.token_hex(4)}@example.com",
         password_hash=hash_password("passw0rd"), full_name="Fin Doc",
-        role="doctor", is_active=True,
+        role_id=_rid(db, "doctor"), is_active=True,
     )
     db.add(doc_user)
     db.flush()

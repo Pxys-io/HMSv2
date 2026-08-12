@@ -6,16 +6,31 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.core.security import hash_password
-from app.models.identity import Doctor, StaffUser
+from app.models.identity import Doctor, Role, StaffUser
 from app.models.scheduling import Appointment, DoctorSchedule
 from app.schemas.auth import UserCreate, UserUpdate
 
+
+def _resolve_role(db, body) -> Role:
+    """role_id takes precedence; legacy `role` name is resolved via the
+    role table (system names still work)."""
+    if body.role_id is not None:
+        role = db.get(Role, body.role_id)
+        if role is None or not role.is_active:
+            raise AppError("NOT_FOUND", "role not found")
+        return role
+    name = body.role or "secretary"
+    role = db.scalar(select(Role).where(Role.name == name, Role.is_active.is_(True)))
+    if role is None:
+        raise AppError("NOT_FOUND", f"role '{name}' not found")
+    return role
+
 router = APIRouter(prefix="/api/users", tags=["users"])
-admin = Annotated[StaffUser, Depends(require_role("admin"))]
+admin = Annotated[StaffUser, Depends(require_perm("admin.users"))]
 
 
 @router.get("")
@@ -41,19 +56,20 @@ def create_user(
 ):
     if db.scalar(select(StaffUser).where(StaffUser.email == body.email.lower())):
         raise AppError("CONFLICT", "user already exists")
+    role = _resolve_role(db, body)
     user = StaffUser(
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         full_name=body.full_name,
         full_name_ar=body.full_name_ar,
         phone=body.phone,
-        role=body.role,
+        role_id=role.id,
         must_change_password=True,
     )
     db.add(user)
     db.flush()  # assign id before the audited commit
-    if body.role == "doctor":
-        # role=doctor implies a Doctor profile (Plan/02 §3) — auto-create it
+    if role.name == "doctor":
+        # doctor role implies a Doctor profile (Plan/02 §3) — auto-create it
         db.add(Doctor(staff_user_id=user.id, specialty="General"))
     with audit.audited_action(
         audit_db,
@@ -90,32 +106,37 @@ def update_user(
         user.full_name_ar = body.full_name_ar
     if body.phone is not None:
         user.phone = body.phone
-    if body.role is not None and body.role != user.role:
-        if body.role == "doctor":
-            existing = db.scalar(select(Doctor).where(Doctor.staff_user_id == user.id))
-            if existing is None:
-                db.add(Doctor(staff_user_id=user.id, specialty="General"))
-                db.flush()
-        else:
-            doctor = db.scalar(select(Doctor).where(Doctor.staff_user_id == user.id))
-            if doctor is not None:
-                in_use = db.scalar(
-                    select(Appointment.id).where(
-                        Appointment.doctor_id == doctor.id,
-                        Appointment.status.in_(("booked", "checked_in", "in_progress")),
-                    ).limit(1)
-                ) or db.scalar(
-                    select(DoctorSchedule.id)
-                    .where(DoctorSchedule.doctor_id == doctor.id)
-                    .limit(1)
-                )
-                if in_use:
-                    raise AppError(
-                        "CONFLICT",
-                        "doctor has schedules or active appointments; "
-                        "deactivate via the Doctors tab first",
+    if (body.role_id is not None or body.role is not None) and (
+        body.role_id != user.role_id or (body.role_id is None and body.role != user.role)
+    ):
+        new_role = _resolve_role(db, body)
+        if new_role.id != user.role_id:
+            if new_role.name == "doctor":
+                existing = db.scalar(select(Doctor).where(Doctor.staff_user_id == user.id))
+                if existing is None:
+                    db.add(Doctor(staff_user_id=user.id, specialty="General"))
+                    db.flush()
+            elif user.role == "doctor":
+                doctor = db.scalar(select(Doctor).where(Doctor.staff_user_id == user.id))
+                if doctor is not None:
+                    in_use = db.scalar(
+                        select(Appointment.id).where(
+                            Appointment.doctor_id == doctor.id,
+                            Appointment.status.in_(("booked", "checked_in", "in_progress")),
+                        ).limit(1)
+                    ) or db.scalar(
+                        select(DoctorSchedule.id)
+                        .where(DoctorSchedule.doctor_id == doctor.id)
+                        .limit(1)
                     )
-        user.role = body.role
+                    if in_use:
+                        raise AppError(
+                            "CONFLICT",
+                            "doctor has schedules or active appointments; "
+                            "deactivate via the Doctors tab first",
+                        )
+            user.role_id = new_role.id
+            db.expire(user, ["role_obj"])
     if body.is_active is not None:
         user.is_active = body.is_active
     if body.password is not None:
@@ -146,6 +167,7 @@ def _payload(user: StaffUser) -> dict:
         "full_name_ar": user.full_name_ar,
         "phone": user.phone,
         "role": user.role,
+        "role_id": user.role_id,
         "is_active": user.is_active,
         "must_change_password": user.must_change_password,
     }

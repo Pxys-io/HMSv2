@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.core.security import hash_password, sha256_hex
@@ -18,7 +18,7 @@ from app.models.scheduling import Appointment
 from app.schemas.auth import DoctorCreate, DoctorUpdate
 
 router = APIRouter(prefix="/api/doctors", tags=["doctors"])
-admin = Annotated[StaffUser, Depends(require_role("admin"))]
+admin = Annotated[StaffUser, Depends(require_perm("admin.users"))]
 
 
 @router.get("")
@@ -44,13 +44,15 @@ def create_doctor(
 ):
     if db.scalar(select(StaffUser).where(StaffUser.email == body.email.lower())):
         raise AppError("CONFLICT", "user already exists")
+    from app.services.roles import role_id as _rid
+
     user = StaffUser(
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         full_name=body.full_name,
         full_name_ar=body.full_name_ar,
         phone=body.phone,
-        role="doctor",
+        role_id=_rid(db, "doctor"),
         must_change_password=True,
     )
     db.add(user)

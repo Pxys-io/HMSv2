@@ -45,7 +45,8 @@ class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=200)
     full_name_ar: str | None = None
     phone: str | None = None
-    role: str = "secretary"  # admin | doctor | secretary
+    role: str | None = None  # legacy: system role name
+    role_id: int | None = None  # preferred: role table id
 
 
 class UserUpdate(BaseModel):
@@ -53,6 +54,7 @@ class UserUpdate(BaseModel):
     full_name_ar: str | None = None
     phone: str | None = None
     role: str | None = None
+    role_id: int | None = None
     is_active: bool | None = None
     password: str | None = Field(default=None, min_length=8, max_length=128)
 

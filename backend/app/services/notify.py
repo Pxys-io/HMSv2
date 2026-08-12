@@ -29,7 +29,12 @@ def fan_out(
     if staff_id is not None:
         stmt = stmt.where(StaffUser.id == staff_id)
     elif roles:
-        stmt = stmt.where(StaffUser.role.in_(roles))
+        from app.models.identity import Role
+
+        role_ids = db.scalars(
+            select(Role.id).where(Role.name.in_(roles))
+        ).all()
+        stmt = stmt.where(StaffUser.role_id.in_(role_ids))
     users = db.scalars(stmt).all()
     notifications = [
         Notification(staff_user_id=u.id, type=type, title=title, body=body, link=link)

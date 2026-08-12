@@ -95,12 +95,14 @@ def seed() -> None:
             else:
                 password = "admin12345"
                 must_change = False
+            from app.services.roles import role_id as _rid
+
             db.add(
                 StaffUser(
                     email="admin@example.com",
                     password_hash=hash_password(password),
                     full_name="System Admin",
-                    role="admin",
+                    role_id=_rid(db, "admin"),
                     is_active=True,
                     must_change_password=must_change,
                 )
@@ -112,12 +114,14 @@ def seed() -> None:
                 select(StaffUser).where(StaffUser.email == "demo@example.com")
             )
             if exists is None:
+                from app.services.roles import role_id as _rid
+
                 demo_user = StaffUser(
                     email="demo@example.com",
                     password_hash=hash_password("demo12345"),
                     full_name="Demo Doctor",
                     full_name_ar="دكتور تجريبي",
-                    role="doctor",
+                    role_id=_rid(db, "doctor"),
                     is_active=True,
                 )
                 db.add(demo_user)

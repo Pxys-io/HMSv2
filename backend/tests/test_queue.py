@@ -14,6 +14,7 @@ from app.models.config import Setting
 from app.models.identity import Doctor, PatientProfile, StaffUser
 from app.models.queueing import QueueEntry
 from app.models.scheduling import Appointment, DoctorSchedule, VisitType
+from app.services.roles import role_id as _rid
 from tests.conftest import csrf_headers
 
 TODAY = date.today()
@@ -28,7 +29,7 @@ def clinic():
     user = StaffUser(
         email=f"qdr-{secrets.token_hex(4)}@example.com",
         password_hash=hash_password("passw0rd"), full_name="Queue Doc",
-        role="doctor", is_active=True,
+        role_id=_rid(db, "doctor"), is_active=True,
     )
     db.add(user)
     db.flush()

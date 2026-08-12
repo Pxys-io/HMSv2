@@ -20,14 +20,14 @@ from sqlalchemy import select
 
 from app.audit import service as audit
 from app.core.config import get_settings
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.models.config import PublicAsset, Setting
 from app.models.identity import StaffUser
 from app.services.settings import DEFAULT_SETTINGS, get_setting
 
 router = APIRouter(prefix="/api", tags=["settings-assets"])
-admin = Annotated[StaffUser, Depends(require_role("admin"))]
+admin = Annotated[StaffUser, Depends(require_perm("admin.settings"))]
 
 KNOWN_KEYS = {
     "clinic.name", "clinic.address", "clinic.phones", "clinic.country_code",

@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.core.security import sha256_hex
 from app.models.config import Setting
@@ -26,9 +26,11 @@ from app.services.sequences import next_patient_code
 from app.services.settings import clinic_today
 
 router = APIRouter(prefix="/api/queue", tags=["queue"])
-staff = Annotated[StaffUser, Depends(require_role("admin", "secretary", "doctor"))]
-secretary = Annotated[StaffUser, Depends(require_role("admin", "secretary"))]
-doctor_only = Annotated[StaffUser, Depends(require_role("admin", "doctor"))]
+staff = Annotated[StaffUser, Depends(require_perm("queue.view"))]
+secretary = Annotated[
+    StaffUser, Depends(require_perm("queue.checkin", "queue.move", "queue.close_day"))
+]
+doctor_only = Annotated[StaffUser, Depends(require_perm("queue.start", "queue.complete"))]
 
 
 class CheckInRequest(BaseModel):

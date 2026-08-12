@@ -11,13 +11,13 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.models.emr import Attachment
 from app.models.identity import StaffUser
 
 router = APIRouter(prefix="/api/files", tags=["files"])
-clinical = Annotated[StaffUser, Depends(require_role("doctor", "admin"))]
+clinical = Annotated[StaffUser, Depends(require_perm("emr.view"))]
 
 
 @router.get("/{attachment_id}")

@@ -54,9 +54,38 @@ def get_current_patient(request: Request, db: DbDep) -> PatientAccount:
 
 
 def require_role(*roles: str):
+    """System-role guard (admin/doctor/secretary by name). Custom roles get
+    'custom' from the `role` property and are handled by require_perm."""
+
     def checker(staff: Annotated[StaffUser, Depends(get_current_staff)]) -> StaffUser:
         if staff.role not in roles:
             raise AppError("FORBIDDEN", "insufficient role")
+        return staff
+
+    return checker
+
+
+def require_any_perm(*codes: str):
+    """Passes when the user holds ANY of the given permissions."""
+
+    def checker(staff: Annotated[StaffUser, Depends(get_current_staff)]) -> StaffUser:
+        allowed = staff.permission_codes
+        if not any(c in allowed for c in codes):
+            raise AppError("FORBIDDEN", "insufficient permission")
+        return staff
+
+    return checker
+
+
+def require_perm(*codes: str):
+    """Permission guard (Plan/14 A1): the user's role must hold ALL codes.
+    Admins implicitly pass (system role with every permission)."""
+
+    def checker(staff: Annotated[StaffUser, Depends(get_current_staff)]) -> StaffUser:
+        allowed = staff.permission_codes
+        missing = [c for c in codes if c not in allowed]
+        if missing:
+            raise AppError("FORBIDDEN", f"missing permission(s): {', '.join(missing)}")
         return staff
 
     return checker

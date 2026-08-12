@@ -30,6 +30,7 @@ Arabic + English (full RTL).
 | `Plan/11-Public-Website.md` | 11 | Landing page, booking flow, patient account + family profiles, chat widget |
 | `Plan/12-i18n.md` | 12 | AR/EN translation system, RTL, fonts, numerals, print locales, QA checklist |
 | `Plan/13-Hardening.md` | 13 | Rate limits, backups, systemd, nginx, TLS, logging, launch checklist |
+| `Plan/14-ERP-Round2.md` | 14 | Flexibility (roles/permissions, custom fields), VAT + expenses + petty cash + P&L, dashboard, activity stream, communication log, tags, tasks, referrals, lab orders, duplicates/merge/unarchive, bulk actions, patient documents, local reminders, ICD-10 + structured labs + vitals ranges + growth charts, inventory/pharmacy, HR |
 
 ---
 
@@ -211,6 +212,7 @@ Execute strictly in order; each phase file contains step-by-step tasks, UI specs
 | 11 | Public website | `Plan/11-Public-Website.md` | Landing + booking + account + widget |
 | 12 | i18n | `Plan/12-i18n.md` | AR/EN + RTL everywhere |
 | 13 | Hardening | `Plan/13-Hardening.md` | Prod deploy, backups, security, launch |
+| 14 | ERP Round 2 | `Plan/14-ERP-Round2.md` | Flexibility, VAT/expenses/P&L, Ops & CRM, EMR depth, inventory, HR (scope locked with owner; do not start until approved) |
 
 ---
 

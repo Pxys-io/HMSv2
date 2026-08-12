@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.models.identity import PatientProfile, StaffUser
@@ -19,7 +19,7 @@ from app.services import appointments as appt_service
 from app.services.idempotency import claim, get_key_from_request
 
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
-staff = Annotated[StaffUser, Depends(require_role("admin", "secretary"))]
+staff = Annotated[StaffUser, Depends(require_perm("appointment.view"))]
 
 
 def _payload(appt: Appointment, db: Session) -> dict:
@@ -48,7 +48,7 @@ def _payload(appt: Appointment, db: Session) -> dict:
 
 @router.get("")
 def list_appointments(
-    current: staff,
+    current: Annotated[StaffUser, Depends(require_perm("appointment.view"))],
     db: DbDep,
     doctor_id: int | None = None,
     date: date | None = None,
@@ -71,7 +71,7 @@ def list_appointments(
 @router.post("")
 def staff_book(
     body: AppointmentCreate,
-    current: staff,
+    current: Annotated[StaffUser, Depends(require_perm("appointment.view"))],
     request: Request,
     response: Response,
     db: DbDep,
@@ -106,7 +106,11 @@ def staff_book(
 
 
 @router.get("/{appointment_id}")
-def get_appointment(appointment_id: int, current: staff, db: DbDep):
+def get_appointment(
+    appointment_id: int,
+    current: Annotated[StaffUser, Depends(require_perm("appointment.view"))],
+    db: DbDep,
+):
     appt = db.get(Appointment, appointment_id)
     if appt is None:
         raise AppError("NOT_FOUND", "appointment not found")
@@ -117,7 +121,7 @@ def get_appointment(appointment_id: int, current: staff, db: DbDep):
 def move_appointment(
     appointment_id: int,
     body: AppointmentMove,
-    current: staff,
+    current: Annotated[StaffUser, Depends(require_perm("appointment.view"))],
     request: Request,
     db: DbDep,
     audit_db: AuditDbDep,
@@ -139,7 +143,7 @@ def move_appointment(
 def cancel_appointment(
     appointment_id: int,
     body: AppointmentCancel,
-    current: staff,
+    current: Annotated[StaffUser, Depends(require_perm("appointment.view"))],
     request: Request,
     db: DbDep,
     audit_db: AuditDbDep,
@@ -160,7 +164,7 @@ def cancel_appointment(
 @router.post("/{appointment_id}/no-show")
 def no_show_appointment(
     appointment_id: int,
-    current: staff,
+    current: Annotated[StaffUser, Depends(require_perm("appointment.view"))],
     request: Request,
     db: DbDep,
     audit_db: AuditDbDep,

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.models.identity import PatientProfile, StaffUser
@@ -17,7 +17,7 @@ from app.schemas.scheduling import PatientProfileCreate, PatientProfileUpdate
 from app.services.sequences import next_patient_code
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
-staff = Annotated[StaffUser, Depends(require_role("admin", "doctor", "secretary"))]
+staff = Annotated[StaffUser, Depends(require_perm("patient.view"))]
 
 
 def _payload(profile: PatientProfile) -> dict:
@@ -144,7 +144,7 @@ class _ClinicalAlerts(BaseModel):
 def patch_clinical_alerts(
     profile_id: int,
     body: _ClinicalAlerts,
-    current: Annotated[StaffUser, Depends(require_role("doctor", "admin"))],
+    current: Annotated[StaffUser, Depends(require_perm("patient.edit", "emr.write"))],
     request: Request,
     db: DbDep,
     audit_db: AuditDbDep,

@@ -6,15 +6,15 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import or_, select
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.models.emr import Medication
 from app.models.identity import StaffUser
 from app.schemas.emr import MedicationCreate, MedicationUpdate
 
 router = APIRouter(prefix="/api/medications", tags=["medications"])
-staff = Annotated[StaffUser, Depends(require_role("admin", "doctor", "secretary"))]
-clinical = Annotated[StaffUser, Depends(require_role("admin", "doctor"))]
+staff = Annotated[StaffUser, Depends(require_perm("emr.view"))]
+clinical = Annotated[StaffUser, Depends(require_perm("emr.write"))]
 
 
 @router.get("")

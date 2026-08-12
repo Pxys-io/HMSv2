@@ -19,10 +19,12 @@ TODAY = date.today()
 
 
 def make_staff(db, email=None, role="doctor"):
+    from app.services.roles import role_id as _rid
+
     user = StaffUser(
         email=email or f"emr-{secrets.token_hex(4)}@example.com",
         password_hash=hash_password("passw0rd"), full_name="EMR Doc",
-        role=role, is_active=True,
+        role_id=_rid(db, role), is_active=True,
     )
     db.add(user)
     db.flush()

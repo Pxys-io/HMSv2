@@ -26,6 +26,9 @@ from app.api.routes import (
     audit as audit_router,
 )
 from app.api.routes import auth as staff_auth
+from app.api.routes import (
+    roles as roles_router,
+)
 from app.api.routes import settings as settings_router
 from app.api.routes import visits as visits_router
 from app.core.config import get_settings
@@ -95,6 +98,7 @@ def create_app() -> FastAPI:
     app.include_router(audit_router.router)
     app.include_router(settings_router.router)
     app.include_router(settings_router.public_router)
+    app.include_router(roles_router.router)
 
     return app
 

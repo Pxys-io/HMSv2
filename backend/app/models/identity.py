@@ -15,7 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.mixins import TimestampMixin
@@ -30,11 +30,24 @@ class StaffUser(TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(200))
     full_name_ar: Mapped[str | None] = mapped_column(String(200), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    role: Mapped[str] = mapped_column(Enum("admin", "doctor", "secretary", name="staff_role"),
-        index=True)
+    role_id: Mapped[int | None] = mapped_column(ForeignKey("role.id"), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    role_obj: Mapped["Role | None"] = relationship("Role", lazy="joined")
+
+    @property
+    def role(self) -> str:
+        """System-role name for UI/business checks; 'custom' for custom roles."""
+        role = self.role_obj
+        if role is not None and role.is_system:
+            return role.name
+        return "custom"
+
+    @property
+    def permission_codes(self) -> set[str]:
+        return {rp.permission.code for rp in (self.role_obj.permissions if self.role_obj else [])}
 
 
 class Doctor(TimestampMixin, Base):
@@ -127,3 +140,41 @@ class RefreshToken(TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class Role(TimestampMixin, Base):
+    __tablename__ = "role"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(60), unique=True)
+    name_ar: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    permissions: Mapped[list["RolePermission"]] = relationship(
+        "RolePermission", lazy="selectin", cascade="all, delete-orphan"
+    )
+
+
+class Permission(TimestampMixin, Base):
+    __tablename__ = "permission"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(60), unique=True)
+    label: Mapped[str] = mapped_column(String(120))
+    label_ar: Mapped[str] = mapped_column(String(120), default="")
+    group: Mapped[str] = mapped_column(String(40), default="other")
+
+
+
+
+class RolePermission(TimestampMixin, Base):
+    __tablename__ = "role_permission"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    role_id: Mapped[int] = mapped_column(ForeignKey("role.id", ondelete="CASCADE"))
+    permission_id: Mapped[int] = mapped_column(ForeignKey("permission.id", ondelete="CASCADE"))
+    permission: Mapped["Permission"] = relationship("Permission", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission_id", name="uq_role_permission"),
+    )

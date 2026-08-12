@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_any_perm, require_perm
 from app.core.errors import AppError
 from app.models.emr import Attachment, Visit
 from app.models.identity import PatientProfile, StaffUser
@@ -24,8 +24,8 @@ from app.services import visits as visit_service
 from app.services.idempotency import claim, complete, get_key_from_request
 
 router = APIRouter(prefix="/api", tags=["visits"])
-doctor = Annotated[StaffUser, Depends(require_role("doctor", "admin"))]
-staff_any = Annotated[StaffUser, Depends(require_role("admin", "doctor", "secretary"))]
+doctor = Annotated[StaffUser, Depends(require_perm("emr.view", "emr.write"))]
+staff_any = Annotated[StaffUser, Depends(require_any_perm("emr.view", "patient.view"))]
 
 
 def _replay_response(

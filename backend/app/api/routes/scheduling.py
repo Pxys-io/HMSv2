@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 
 from app.audit import service as audit
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm, require_role
 from app.core.errors import AppError
 from app.models.identity import Doctor, StaffUser
 from app.models.scheduling import DoctorSchedule, ScheduleBlock, VisitType
@@ -23,7 +23,7 @@ from app.services.availability import day_availability
 
 router = APIRouter(prefix="/api", tags=["scheduling"])
 admin = Annotated[StaffUser, Depends(require_role("admin"))]
-staff = Annotated[StaffUser, Depends(require_role("admin", "doctor", "secretary"))]
+staff = Annotated[StaffUser, Depends(require_perm("appointment.view"))]
 doctor_self = Annotated[StaffUser, Depends(require_role("admin", "doctor"))]
 
 

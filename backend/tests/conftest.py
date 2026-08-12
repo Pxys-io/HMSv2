@@ -32,16 +32,23 @@ def _fresh_databases():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     AuditBase.metadata.create_all(audit_engine)
-    # Bootstrap staff accounts used across test files (admin/secretary).
+    # Seed the permission catalog + system roles, then bootstrap staff.
     session = SessionLocal()
-    from app.models.identity import StaffUser
+    from app.services.roles import seed_system_roles
 
+    seed_system_roles(session)
+    from sqlalchemy import select
+
+    from app.models.identity import Role, StaffUser
+
+    admin_role = session.scalar(select(Role).where(Role.name == "admin"))
+    sec_role = session.scalar(select(Role).where(Role.name == "secretary"))
     session.add(
         StaffUser(
             email="admin@example.com",
             password_hash=hash_password("passw0rd"),
             full_name="Admin",
-            role="admin",
+            role_id=admin_role.id,
             is_active=True,
         )
     )
@@ -50,7 +57,7 @@ def _fresh_databases():
             email="sec@example.com",
             password_hash=hash_password("passw0rd"),
             full_name="Sec",
-            role="secretary",
+            role_id=sec_role.id,
             is_active=True,
         )
     )
@@ -80,13 +87,18 @@ def client():
 
 
 def make_staff(db, *, email, password="passw0rd", role="secretary", is_active=True):
-    from app.models.identity import StaffUser
+    from sqlalchemy import select
 
+    from app.models.identity import Role, StaffUser
+
+    role_row = db.scalar(select(Role).where(Role.name == role))
+    if role_row is None:
+        raise RuntimeError(f"role {role} not seeded — run seed or conftest bootstrap")
     user = StaffUser(
         email=email,
         password_hash=hash_password(password),
         full_name=email.split("@")[0],
-        role=role,
+        role_id=role_row.id,
         is_active=is_active,
     )
     db.add(user)

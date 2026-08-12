@@ -10,6 +10,7 @@ from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.identity import Doctor, StaffUser
 from app.models.scheduling import DoctorSchedule, VisitType
+from app.services.roles import role_id as _rid
 from tests.conftest import csrf_headers
 
 TODAY = date.today()
@@ -22,7 +23,7 @@ def make_doctor(db, *, mode="slots", day_capacity=None, slot_capacity=1):
         email=f"dr-{secrets.token_hex(4)}-{mode}@example.com",
         password_hash=hash_password("passw0rd"),
         full_name="Test Doctor",
-        role="doctor",
+        role_id=_rid(db, "doctor"),
         is_active=True,
     )
     db.add(user)

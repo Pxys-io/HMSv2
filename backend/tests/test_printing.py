@@ -11,6 +11,7 @@ from app.db.session import SessionLocal
 from app.models.emr import Visit
 from app.models.identity import Doctor, PatientProfile, StaffUser
 from app.models.scheduling import VisitType
+from app.services.roles import role_id as _rid
 from tests.conftest import csrf_headers
 
 TODAY = date.today()
@@ -23,7 +24,7 @@ def emr_setup(client):
     doc_user = StaffUser(
         email=f"pr-{secrets.token_hex(4)}@example.com",
         password_hash=hash_password("passw0rd"), full_name="Print Doc",
-        role="doctor", is_active=True,
+        role_id=_rid(db, "doctor"), is_active=True,
     )
     db.add(doc_user)
     db.flush()

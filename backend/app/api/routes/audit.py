@@ -10,13 +10,13 @@ from sqlalchemy import select
 
 from app.audit import service as audit
 from app.audit.models import AuditEvent
-from app.core.deps import AuditDbDep, require_role
+from app.core.deps import AuditDbDep, require_perm
 from app.core.errors import AppError
 from app.core.pagination import paginate
 from app.models.identity import StaffUser
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
-admin = Annotated[StaffUser, Depends(require_role("admin"))]
+admin = Annotated[StaffUser, Depends(require_perm("admin.audit"))]
 
 
 def _payload(event: AuditEvent) -> dict:

@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.audit import service as audit
 from app.core.config import get_settings
-from app.core.deps import AuditDbDep, DbDep, get_request_id, require_role
+from app.core.deps import AuditDbDep, DbDep, get_request_id, require_perm
 from app.core.errors import AppError
 from app.models.comms import PrintTemplate
 from app.models.identity import StaffUser
@@ -24,8 +24,8 @@ from app.services import recalls as recalls_service
 from app.services import search as search_service
 
 router = APIRouter(prefix="/api", tags=["print-recalls-search"])
-staff = Annotated[StaffUser, Depends(require_role("admin", "doctor", "secretary"))]
-admin = Annotated[StaffUser, Depends(require_role("admin"))]
+staff = Annotated[StaffUser, Depends(require_perm("patient.view"))]
+admin = Annotated[StaffUser, Depends(require_perm("admin.templates"))]
 
 
 def _print_token(key: str, entity_id: int) -> str:

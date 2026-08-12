@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.db.session import SessionLocal
 from app.models.identity import Doctor, PatientProfile, StaffUser
 from app.models.scheduling import Appointment, DoctorSchedule
+from app.services.roles import role_id as _rid
 from tests.conftest import csrf_headers
 
 
@@ -29,7 +30,7 @@ def admin_headers(client):
 def make_doctor_row(db, suffix):
     user = StaffUser(
         email=f"dr-{suffix}@example.com", password_hash="x", full_name="Doc",
-        role="doctor", is_active=True,
+        role_id=_rid(db, "doctor"), is_active=True,
     )
     db.add(user)
     db.flush()
