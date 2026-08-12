@@ -22,8 +22,12 @@ class CustomFieldCreate(BaseModel):
     entity: str = Field(pattern="^(patient|visit)$")
     label: str = Field(min_length=2, max_length=200)
     label_ar: str | None = None
-    type: str = Field(pattern="^(text|textarea|number|date|select|multiselect|boolean)$")
+    type: str = Field(pattern=(
+        "^(text|textarea|number|date|select|multiselect|boolean|"
+        "photo|file|annotation|audio)$"
+    ))
     options: list | None = None
+    template_file_id: int | None = None
     is_required: bool = False
     order: int = 0
 
@@ -33,6 +37,7 @@ class CustomFieldUpdate(BaseModel):
     label_ar: str | None = None
     type: str | None = None
     options: list | None = None
+    template_file_id: int | None = None
     is_required: bool | None = None
     order: int | None = None
 
@@ -78,6 +83,8 @@ def create_field(
 ):
     if body.type in ("select", "multiselect") and not body.options:
         raise AppError("VALIDATION", "select/multiselect fields need options")
+    if body.type == "annotation" and not getattr(body, "template_file_id", None):
+        raise AppError("VALIDATION", "annotation fields need a template image")
     key = create_key(db, body.entity, body.label)  # F1: auto key, unique
     field = CustomField(
         entity=body.entity,

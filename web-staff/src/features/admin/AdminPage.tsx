@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../auth/store'
 import { CustomFieldsTab } from './CustomFieldsTab'
+import { PatientFormTab } from './PatientFormTab'
 import { DoctorsTab } from './DoctorsTab'
 import { RolesTab } from './RolesTab'
 import { PricingTab } from './PricingTab'
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'custom-fields', label: 'Custom fields' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'syndicates', label: 'Syndicates' },
+  { id: 'patient-form', label: 'Patient form' },
   { id: 'visit-form', label: 'Visit form' },
   { id: 'settings', label: 'Settings' },
 ]
@@ -49,6 +51,7 @@ export default function AdminPage() {
       {tab === 'syndicates' && <SyndicatesTab />}
       {tab === 'settings' && <SettingsTab />}
       {tab === 'visit-form' && <VisitFormTab />}
+      {tab === 'patient-form' && <PatientFormTab />}
     </div>
   )
 }

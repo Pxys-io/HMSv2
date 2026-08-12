@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { get, post } from '../../api/client'
+import { get, post, uploadFile } from '../../api/client'
 import { Button, Card, EmptyState, Modal, inputClass } from '../../components/ui'
 
 type FieldRow = {
@@ -16,7 +16,8 @@ type FieldRow = {
   order: number
 }
 
-const TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'boolean']
+const TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect',
+  'boolean', 'photo', 'file', 'annotation', 'audio']
 
 export function CustomFieldsTab() {
   const [entity, setEntity] = useState<'patient' | 'visit'>('patient')
@@ -101,6 +102,8 @@ function FieldModal({
   const [type, setType] = useState('text')
   const [optionsText, setOptionsText] = useState('')
   const [required, setRequired] = useState(false)
+  const [templateId, setTemplateId] = useState<number | null>(null)
+  const [templateBusy, setTemplateBusy] = useState(false)
   const [error, setError] = useState('')
 
   async function submit() {
@@ -115,6 +118,7 @@ function FieldModal({
           type === 'select' || type === 'multiselect'
             ? optionsText.split(',').map((s) => s.trim()).filter(Boolean)
             : undefined,
+        template_file_id: type === 'annotation' ? templateId : undefined,
         is_required: required,
       })
       onDone()
@@ -136,6 +140,36 @@ function FieldModal({
           </option>
         ))}
       </select>
+      {type === 'annotation' && (
+        <label className="mt-2 flex items-center gap-2 text-xs text-ink-600">
+          <span className="rounded-md border border-border px-2 py-1">
+            {templateBusy ? 'Uploading…' : templateId ? `✓ template #${templateId}` : '⬆ Template image'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setTemplateBusy(true)
+                try {
+                  const form = new FormData()
+                  form.append('file', file)
+                  const body = await uploadFile<{ template_file_id: number }>(
+                    '/api/form-assets/template',
+                    form,
+                  )
+                  setTemplateId(body.template_file_id)
+                } catch {
+                  /* toast shown by client */
+                } finally {
+                  setTemplateBusy(false)
+                }
+              }}
+            />
+          </span>
+        </label>
+      )}
       {(type === 'select' || type === 'multiselect') && (
         <input
           className={inputClass + ' mt-2'}

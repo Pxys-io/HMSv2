@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { get, patch, post, put } from '../../api/client'
 import { Button, Card, EmptyState, StatusBadge, inputClass } from '../../components/ui'
-import { DynamicFields } from '../admin/DynamicFields'
+import { PatientFormFields, splitPatientValues, usePatientFormSchema } from './PatientFormFields'
 
 type Patient = {
   id: number
@@ -47,9 +47,9 @@ export default function PatientDetailPage() {
   const { profileId } = useParams()
   const id = Number(profileId)
   const [editing, setEditing] = useState(false)
-  const [editName, setEditName] = useState('')
-  const [editPhone, setEditPhone] = useState('')
-  const [editCustom, setEditCustom] = useState<Record<string, unknown>>({})
+  const [editValues, setEditValues] = useState<Record<string, unknown>>({})
+  const formSchema = usePatientFormSchema()
+  const profileFormKeys = formSchema.data?.fixed_keys ?? []
 
   const patient = useQuery({
     queryKey: ['patient', id],
@@ -93,10 +93,10 @@ export default function PatientDetailPage() {
   const openVisit = timeline.find((v) => v.status === 'open')
 
   async function saveProfile() {
+    const { fixed, custom_data } = splitPatientValues(profileFormKeys, editValues)
     await patch(`/api/patients/${id}/demographics`, {
-      full_name: editName,
-      phone: editPhone,
-      custom_data: Object.keys(editCustom).length ? editCustom : undefined,
+      ...fixed,
+      custom_data,
     })
     setEditing(false)
     patient.refetch()
@@ -123,8 +123,11 @@ export default function PatientDetailPage() {
           <h2 className="text-sm font-semibold text-ink-600">Profile</h2>
           {editing ? (
             <div className="mt-3 space-y-2">
-              <input className={inputClass} value={editName} onChange={(e) => setEditName(e.target.value)} />
-              <input className={inputClass} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              <PatientFormFields
+                values={editValues}
+                onChange={setEditValues}
+                uploadUrl={`/api/form-assets/patient/${id}`}
+              />
               <div className="flex gap-2">
                 <Button size="sm" onClick={saveProfile}>
                   Save
@@ -149,13 +152,19 @@ export default function PatientDetailPage() {
               {p.has_chronic_conditions && (
                 <p className="rounded-md bg-amber-50 p-2 text-amber-700">⚠ Chronic conditions on record</p>
               )}
-              <DynamicFields entity="patient" value={editCustom} onChange={setEditCustom} />
+
               <button
                 onClick={() => {
                   setEditing(true)
-                  setEditName(p.full_name)
-                  setEditPhone(p.phone)
-                  setEditCustom(p.custom_data ?? {})
+                  setEditValues({
+                    full_name: p.full_name,
+                    phone: p.phone,
+                    gender: p.gender ?? '',
+                    birth_date: p.birth_date ?? '',
+                    phone_alt: p.phone_alt ?? '',
+                    address: p.address ?? '',
+                    ...(p.custom_data ?? {}),
+                  })
                 }}
                 className="mt-2 text-sm text-brand-700 underline"
               >

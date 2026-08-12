@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { get } from '../../api/client'
 import { inputClass } from '../../components/ui'
+import {
+  AnnotationInput,
+  AudioRecorder,
+  FileInput,
+  PhotoInput,
+} from '../patients/FormAssetInputs'
 
 type FieldDef = {
   id: number
@@ -10,6 +16,7 @@ type FieldDef = {
   type: string
   options: string[] | null
   is_required: boolean
+  template_file_id?: number | null
 }
 
 export function useFieldSchema(entity: 'patient' | 'visit') {
@@ -23,10 +30,12 @@ export function DynamicFields({
   entity,
   value,
   onChange,
+  uploadUrl,
 }: {
   entity: 'patient' | 'visit'
   value: Record<string, unknown>
   onChange: (next: Record<string, unknown>) => void
+  uploadUrl?: string | null
 }) {
   const schema = useFieldSchema(entity)
   const fields = schema.data?.fields ?? []
@@ -47,6 +56,23 @@ export function DynamicFields({
             {f.label_ar || f.label}
             {f.is_required && <span className="text-danger"> *</span>}
           </label>
+          {f.type === 'photo' && (
+            <PhotoInput value={value[f.key]} onChange={(v) => set(f.key, v)} uploadUrl={uploadUrl ?? null} />
+          )}
+          {f.type === 'file' && (
+            <FileInput value={value[f.key]} onChange={(v) => set(f.key, v)} uploadUrl={uploadUrl ?? null} />
+          )}
+          {f.type === 'annotation' && (
+            <AnnotationInput
+              value={value[f.key]}
+              onChange={(v) => set(f.key, v)}
+              uploadUrl={uploadUrl ?? null}
+              templateFileId={f.template_file_id}
+            />
+          )}
+          {f.type === 'audio' && (
+            <AudioRecorder value={value[f.key]} onChange={(v) => set(f.key, v)} uploadUrl={uploadUrl ?? null} />
+          )}
           {f.type === 'text' && (
             <input
               className={inputClass}

@@ -7,7 +7,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, Index, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -20,6 +20,19 @@ class Setting(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     key: Mapped[str] = mapped_column(String(80), unique=True)
     value: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+
+
+class FormAssetTemplate(TimestampMixin, Base):
+    __tablename__ = "form_asset_template"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    rel_path: Mapped[str] = mapped_column(String(500))
+    mime: Mapped[str] = mapped_column(String(120))
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    uploaded_by: Mapped[int] = mapped_column(ForeignKey("staff_user.id"))
 
 
 class IdempotencyKey(TimestampMixin, Base):
@@ -68,11 +81,13 @@ class CustomField(TimestampMixin, Base):
     type: Mapped[str] = mapped_column(
         Enum(
             "text", "textarea", "number", "date", "select", "multiselect", "boolean",
+            "photo", "file", "annotation", "audio",
             name="custom_field_type",
         ),
         default="text",
     )
     options: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    template_file_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_required: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
     order: Mapped[int] = mapped_column(default=0)

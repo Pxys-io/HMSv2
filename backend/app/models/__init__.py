@@ -10,7 +10,7 @@ from app.models.billing import (
 )
 from app.models.comms import ChatConversation, ChatMessage, Notification, OutboxEvent, PrintTemplate
 from app.models.comms_log import CommunicationLogEntry
-from app.models.config import IdempotencyKey, PublicAsset, Setting
+from app.models.config import FormAssetTemplate, IdempotencyKey, PublicAsset, Setting
 from app.models.emr import (
     Attachment,
     Medication,
@@ -59,6 +59,7 @@ __all__ = [
     "Attachment",
     "CommunicationLogEntry",
     "DuplicateGroup",
+    "FormAssetTemplate",
     "Icd10Code",
     "LabOrder",
     "LabResult",

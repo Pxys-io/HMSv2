@@ -84,6 +84,15 @@ def _coerce(field: CustomField, value: Any) -> Any:
         if value not in (field.options or []):
             raise AppError("VALIDATION", f"{field.key}: value not in allowed options")
         return value
+    if field.type in ("photo", "file", "annotation", "audio"):
+        # Asset fields store a reference to an uploaded file.
+        if not isinstance(value, dict) or not isinstance(value.get("file_id"), int):
+            raise AppError("VALIDATION", f"{field.key}: expected an uploaded file")
+        return {
+            "file_id": value["file_id"],
+            "mime": value.get("mime"),
+            "name": value.get("name"),
+        }
     if field.type == "multiselect":
         if not isinstance(value, list):
             raise AppError("VALIDATION", f"{field.key}: expected a list")

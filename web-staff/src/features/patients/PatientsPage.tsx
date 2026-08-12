@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { get, post } from '../../api/client'
 import { Button, Card, EmptyState, inputClass } from '../../components/ui'
-import { DynamicFields } from '../admin/DynamicFields'
+import { PatientFormFields, splitPatientValues, usePatientFormSchema } from './PatientFormFields'
 
 type Patient = {
   id: number
@@ -75,16 +75,18 @@ export default function PatientsPage() {
 }
 
 function CreatePatientModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [customData, setCustomData] = useState<Record<string, unknown>>({})
+  const [values, setValues] = useState<Record<string, unknown>>({})
   const [error, setError] = useState('')
+  const schema = usePatientFormSchema()
+  const fixedKeys = schema.data?.fixed_keys ?? []
+  const canSave = String(values.full_name ?? '').trim() !== '' && String(values.phone ?? '').trim() !== ''
 
   async function submit() {
     try {
+      const { fixed, custom_data } = splitPatientValues(fixedKeys, values)
       await post(
         '/api/patients',
-        { full_name: name, phone, custom_data: Object.keys(customData).length ? customData : undefined },
+        { ...fixed, custom_data },
         crypto.randomUUID(),
       )
       onDone()
@@ -96,17 +98,15 @@ function CreatePatientModal({ onClose, onDone }: { onClose: () => void; onDone: 
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-6" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-surface p-5" onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-4 text-base font-bold text-ink-900">New patient</h2>
         {error && <p className="mb-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-        <input className={inputClass} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className={inputClass + ' mt-2'} placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <DynamicFields entity="patient" value={customData} onChange={setCustomData} />
+        <PatientFormFields values={values} onChange={setValues} />
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={!name || !phone}>
+          <Button onClick={submit} disabled={!canSave}>
             Create
           </Button>
         </div>

@@ -16,7 +16,6 @@ from app.models.scheduling import Appointment
 from app.schemas.scheduling import PatientProfileCreate, PatientProfileUpdate
 from app.services.activity import list_activity, log_activity
 from app.services.communications import list_communications, log_communication
-from app.services.custom_fields import validate_and_coerce as _validate_custom
 from app.services.sequences import next_patient_code
 
 
@@ -66,9 +65,16 @@ def create_patient(
 ):
     payload = body.model_dump()
     custom_data = payload.pop("custom_data", None)
-    profile = PatientProfile(code=next_patient_code(db), **payload)
     if custom_data is not None:
-        profile.custom_data = _validate_custom(db, "patient", custom_data)
+        payload["custom_data"] = custom_data
+    from app.services.patient_form import validate_payload
+
+    validated = validate_payload(db, payload)
+    profile = PatientProfile(
+        code=next_patient_code(db),
+        **validated["fixed"],
+        custom_data=validated["custom_data"],
+    )
     db.add(profile)
     db.flush()
     with audit.audited_action(
@@ -188,11 +194,17 @@ def patch_demographics(
     if profile is None:
         raise AppError("NOT_FOUND", "patient profile not found")
     before = _payload(profile)
-    for field in body.model_fields_set:
-        if field == "custom_data":
-            profile.custom_data = _validate_custom(db, "patient", getattr(body, field))
-            continue
-        setattr(profile, field, getattr(body, field))
+    patch_payload = body.model_dump(exclude_unset=True)
+    from app.services.patient_form import validate_payload
+
+    validated = validate_payload(db, patch_payload, partial=True)
+    for field, value in validated["fixed"].items():
+        setattr(profile, field, value)
+    if validated["custom_data"] is not None:
+        profile.custom_data = {
+            **(profile.custom_data or {}),
+            **validated["custom_data"],
+        }
     with audit.audited_action(
         audit_db,
         actor_type="staff", actor_id=current.id, actor_label=current.email,

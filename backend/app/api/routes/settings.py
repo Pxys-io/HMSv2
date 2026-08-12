@@ -38,6 +38,7 @@ KNOWN_KEYS = {
     "billing.vat_number", "billing.vat_exempt",
     "booking.horizon_days",
     "reminder.sms_gateway_url", "reminder.sms_token", "reminder.sms_sender",
+    "patient_form.fields",
     "visit_form.sections",
     "vitals.reference_ranges",
     "petty_cash.opening_balance", "petty_cash.categories",

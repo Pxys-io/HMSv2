@@ -431,6 +431,7 @@ export default function ExamPage() {
             entity="visit"
             value={(draft.custom_data as Record<string, unknown>) ?? {}}
             onChange={(next) => setDraft({ ...draft, custom_data: next })}
+            uploadUrl={visit.data ? `/api/form-assets/visit/${visit.data.id}` : null}
           />
         )}
 

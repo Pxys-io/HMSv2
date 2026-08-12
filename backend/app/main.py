@@ -22,6 +22,7 @@ from app.api.routes import (
     expenses,
     files,
     financial,
+    form_assets,
     hr,
     icd10,
     inventory,
@@ -29,6 +30,7 @@ from app.api.routes import (
     medications,
     notifications,
     ops,
+    patient_form,
     patients,
     printing,
     queue,
@@ -114,6 +116,7 @@ def create_app() -> FastAPI:
     app.include_router(scheduling.router)
     app.include_router(appointments.router)
     app.include_router(patients.router)
+    app.include_router(patient_form.router)
     app.include_router(public_booking.router)
     app.include_router(public_profiles.router)
     app.include_router(queue.router)
@@ -121,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(visits_router.router)
     app.include_router(medications.router)
     app.include_router(files.router)
+    app.include_router(form_assets.router)
     app.include_router(financial.router)
     app.include_router(icd10.router)
     app.include_router(inventory.router)
