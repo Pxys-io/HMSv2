@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, patch, post } from '../../api/client'
+
+type RoleRow = { id: number; name: string; is_system: boolean }
 import { Button, Card, EmptyState, Modal, inputClass } from '../../components/ui'
 
 type StaffRow = {
@@ -8,6 +10,7 @@ type StaffRow = {
   email: string
   full_name: string
   role: string
+  role_id: number | null
   is_active: boolean
 }
 
@@ -21,6 +24,7 @@ export function StaffTab() {
     queryFn: () => get<{ items: StaffRow[] }>('/api/users?page_size=100'),
     select: (d) => d.items,
   })
+  const roles = useQuery({ queryKey: ['admin-roles'], queryFn: () => get<RoleRow[]>('/api/roles') })
   const rows = users.data ?? []
 
   return (
@@ -53,12 +57,14 @@ export function StaffTab() {
 
       {createOpen && (
         <StaffModal
+          roles={roles.data ?? []}
           onClose={() => setCreateOpen(false)}
           onDone={() => queryClient.invalidateQueries()}
         />
       )}
       {editTarget && (
         <StaffModal
+          roles={roles.data ?? []}
           target={editTarget}
           onClose={() => setEditTarget(null)}
           onDone={() => queryClient.invalidateQueries()}
@@ -69,10 +75,12 @@ export function StaffTab() {
 }
 
 function StaffModal({
+  roles,
   target,
   onClose,
   onDone,
 }: {
+  roles: RoleRow[]
   target?: StaffRow
   onClose: () => void
   onDone: () => void
@@ -80,7 +88,7 @@ function StaffModal({
   const [email, setEmail] = useState(target?.email ?? '')
   const [password, setPassword] = useState('')
   const [name, setName] = useState(target?.full_name ?? '')
-  const [role, setRole] = useState(target?.role ?? 'secretary')
+  const [roleId, setRoleId] = useState(target?.role_id ?? roles.find((r) => r.name === 'secretary')?.id ?? '')
   const [isActive, setIsActive] = useState(target?.is_active ?? true)
   const [error, setError] = useState('')
 
@@ -90,12 +98,12 @@ function StaffModal({
         await patch(`/api/users/${target.id}`, {
           full_name: name,
           email,
-          role,
+          role_id: Number(roleId),
           is_active: isActive,
           password: password || undefined,
         })
       } else {
-        await post('/api/users', { email, password, full_name: name, role })
+        await post('/api/users', { email, password, full_name: name, role_id: Number(roleId) })
       }
       onDone()
       onClose()
@@ -127,10 +135,13 @@ function StaffModal({
           onChange={(e) => setPassword(e.target.value)}
         />
       )}
-      <select className={inputClass + ' mt-2'} value={role} onChange={(e) => setRole(e.target.value)}>
-        <option value="secretary">Secretary</option>
-        <option value="admin">Admin</option>
-        <option value="doctor">Doctor (creates doctor profile)</option>
+      <select className={inputClass + ' mt-2'} value={String(roleId)} onChange={(e) => setRoleId(e.target.value)}>
+        {roles.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+            {r.is_system ? '' : ' (custom)'}
+          </option>
+        ))}
       </select>
       {target && (
         <label className="mt-2 flex items-center gap-2 text-sm text-ink-600">

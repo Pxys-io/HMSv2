@@ -72,7 +72,9 @@ def staff_logout(request: Request, response: Response, db: DbDep):
 
 @router.get("/me")
 def staff_me(staff: Annotated[StaffUser, Depends(get_current_staff)]):
-    return _user_payload(staff)
+    payload = _user_payload(staff)
+    payload["permissions"] = sorted(staff.permission_codes)
+    return payload
 
 
 def _user_payload(user: StaffUser) -> dict:

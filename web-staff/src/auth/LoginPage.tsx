@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { armAutoRefresh, post } from '../api/client'
+import { armAutoRefresh, get, post } from '../api/client'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from './store'
 
@@ -31,10 +31,16 @@ export default function LoginPage() {
         full_name: data.user.full_name,
         full_name_ar: null,
         phone: null,
-        role: data.user.role as 'admin' | 'doctor' | 'secretary',
+        role: data.user.role,
       }
       setSession(user, data.access_token)
       armAutoRefresh(data.access_token)
+      try {
+        const me = await get<{ permissions?: string[] }>('/api/auth/me')
+        if (me.permissions) useAuthStore.getState().setPermissions(me.permissions)
+      } catch {
+        /* permissions load on next request anyway */
+      }
       navigate(homeFor(user.role), { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')

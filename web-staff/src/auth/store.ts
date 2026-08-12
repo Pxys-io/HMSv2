@@ -6,7 +6,8 @@ export type StaffUser = {
   full_name: string
   full_name_ar: string | null
   phone: string | null
-  role: 'admin' | 'doctor' | 'secretary'
+  role: string
+  permissions?: string[]
   must_change_password?: boolean
 }
 
@@ -15,6 +16,7 @@ type AuthState = {
   accessToken: string | null
   setSession: (user: StaffUser, accessToken: string) => void
   setAccessToken: (token: string) => void
+  setPermissions: (permissions: string[]) => void
   logout: () => void
 }
 
@@ -23,5 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   setSession: (user, accessToken) => set({ user, accessToken }),
   setAccessToken: (accessToken) => set({ accessToken }),
+  setPermissions: (permissions) =>
+    set((state) => ({ user: state.user ? { ...state.user, permissions } : state.user })),
   logout: () => set({ user: null, accessToken: null }),
 }))

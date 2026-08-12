@@ -41,9 +41,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     }
     ;(async () => {
       try {
-        const me = await get<{ id: number; email: string; full_name: string; role: string }>(
-          '/api/auth/me',
-        )
+        const me = await get<{
+          id: number
+          email: string
+          full_name: string
+          role: string
+          permissions?: string[]
+        }>('/api/auth/me')
         useAuthStore.getState().setSession(
           {
             id: me.id,
@@ -51,7 +55,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
             full_name: me.full_name,
             full_name_ar: null,
             phone: null,
-            role: me.role as 'admin' | 'doctor' | 'secretary',
+            role: me.role,
+            permissions: me.permissions,
           },
           '',
         )

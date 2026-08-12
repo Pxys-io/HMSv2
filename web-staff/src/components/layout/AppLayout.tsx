@@ -15,18 +15,18 @@ export type NotificationItem = {
   created_at: string | null
 }
 
-const NAV: { to: string; key: string; roles: string[]; icon: string }[] = [
-  { to: '/board', key: 'board', roles: ['admin', 'secretary'], icon: '▦' },
-  { to: '/calendar', key: 'calendar', roles: ['admin', 'secretary'], icon: '📅' },
-  { to: '/today', key: 'today', roles: ['doctor'], icon: '🩺' },
-  { to: '/schedule', key: 'schedule', roles: ['doctor'], icon: '📆' },
-  { to: '/patients', key: 'patients', roles: ['admin', 'secretary', 'doctor'], icon: '👤' },
-  { to: '/cashier', key: 'cashier', roles: ['admin', 'secretary'], icon: '💵' },
-  { to: '/recalls', key: 'recalls', roles: ['admin', 'secretary', 'doctor'], icon: '⏰' },
-  { to: '/chat', key: 'chat', roles: ['admin', 'secretary'], icon: '💬' },
-  { to: '/reports/daily', key: 'reports', roles: ['admin'], icon: '📊' },
-  { to: '/audit', key: 'audit', roles: ['admin'], icon: '🔒' },
-  { to: '/admin', key: 'admin', roles: ['admin'], icon: '⚙️' },
+const NAV: { to: string; key: string; perm: string; icon: string }[] = [
+  { to: '/board', key: 'board', perm: 'queue.view', icon: '▦' },
+  { to: '/calendar', key: 'calendar', perm: 'appointment.view', icon: '📅' },
+  { to: '/today', key: 'today', perm: 'queue.view', icon: '🩺' },
+  { to: '/schedule', key: 'schedule', perm: 'queue.view', icon: '📆' },
+  { to: '/patients', key: 'patients', perm: 'patient.view', icon: '👤' },
+  { to: '/cashier', key: 'cashier', perm: 'billing.view', icon: '💵' },
+  { to: '/recalls', key: 'recalls', perm: 'patient.view', icon: '⏰' },
+  { to: '/chat', key: 'chat', perm: 'chat.view', icon: '💬' },
+  { to: '/reports/daily', key: 'reports', perm: 'report.all', icon: '📊' },
+  { to: '/audit', key: 'audit', perm: 'admin.audit', icon: '🔒' },
+  { to: '/admin', key: 'admin', perm: 'admin.roles', icon: '⚙️' },
 ]
 
 function useNotifications() {
@@ -59,7 +59,9 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const notifications = useNotifications()
 
-  const nav = NAV.filter((item) => user && item.roles.includes(user.role))
+  const nav = NAV.filter(
+    (item) => user && (user.role === 'admin' || user.permissions?.includes(item.perm)),
+  )
 
   return (
     <div className="flex h-screen bg-bg">
