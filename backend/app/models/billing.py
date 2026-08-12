@@ -78,6 +78,11 @@ class Invoice(TimestampMixin, Base):
     syndicate_due: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     paid_total: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     refunded_total: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    tax_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
+    tax_total: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    vat_inclusive: Mapped[bool] = mapped_column(Boolean, default=True)
+    vat_number: Mapped[str] = mapped_column(String(64), default="")
+    vat_exempt: Mapped[bool] = mapped_column(Boolean, default=False)
     currency: Mapped[str] = mapped_column(String(3), default="EGP")
     status: Mapped[str] = mapped_column(
         Enum("issued", "partially_paid", "paid", "refunded", "cancelled",
@@ -102,6 +107,7 @@ class InvoiceItem(TimestampMixin, Base):
     qty: Mapped[float] = mapped_column(Numeric(8, 2), default=1)
     unit_price: Mapped[float] = mapped_column(Numeric(12, 2))
     line_total: Mapped[float] = mapped_column(Numeric(12, 2))
+    tax_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     visit_type_id: Mapped[int | None] = mapped_column(ForeignKey("visit_type.id"), nullable=True)
 
 

@@ -34,6 +34,8 @@ KNOWN_KEYS = {
     "clinic.timezone", "clinic.hours_text", "clinic.location_url",
     "billing.currency", "billing.discount_cap_secretary_pct",
     "billing.cashier_can_adjust_pricing",
+    "billing.vat_rate_pct", "billing.vat_inclusive",
+    "billing.vat_number", "billing.vat_exempt",
     "booking.horizon_days", "reminder.whatsapp_template_ar",
     "reminder.whatsapp_template_en", "public.about", "public.services",
 }

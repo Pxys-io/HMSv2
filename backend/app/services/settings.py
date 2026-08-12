@@ -42,6 +42,10 @@ DEFAULT_SETTINGS = {
     "billing.currency": "EGP",
     "billing.discount_cap_secretary_pct": 10,
     "billing.cashier_can_adjust_pricing": False,
+    "billing.vat_rate_pct": 0,
+    "billing.vat_inclusive": True,
+    "billing.vat_number": "",
+    "billing.vat_exempt": False,
     "booking.horizon_days": 30,
     "reminder.whatsapp_template_ar": (
         "أهلاً {patient_name}، معاك عيادة {clinic_name}. بنفتكرك بموعدك مع "

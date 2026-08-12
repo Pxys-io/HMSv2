@@ -2,73 +2,16 @@
 discounts/caps, installments, immutability, refunds, idempotency, reports."""
 
 import secrets
-from datetime import date, time
+from datetime import date
 
-import pytest
 from sqlalchemy import select
 
-from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.billing import Invoice
-from app.models.identity import Doctor, PatientProfile, StaffUser
-from app.models.scheduling import Appointment, DoctorSchedule, VisitType
-from app.services.roles import role_id as _rid
+from app.models.identity import PatientProfile
 from tests.conftest import csrf_headers
 
 TODAY = date.today()
-
-
-@pytest.fixture()
-def clinic(client):
-    db = SessionLocal()
-    doc_user = StaffUser(
-        email=f"fin-{secrets.token_hex(4)}@example.com",
-        password_hash=hash_password("passw0rd"), full_name="Fin Doc",
-        role_id=_rid(db, "doctor"), is_active=True,
-    )
-    db.add(doc_user)
-    db.flush()
-    doctor = Doctor(
-        staff_user_id=doc_user.id, specialty="T", booking_mode="slots",
-        default_slot_minutes=20, buffer_minutes=0, slot_capacity=4,
-        billing_mode="per_visit", is_bookable_online=True,
-    )
-    db.add(doctor)
-    db.flush()
-    for wd in range(7):
-        db.add(
-            DoctorSchedule(
-                doctor_id=doctor.id, weekday=wd, start_time=time(17, 0), end_time=time(21, 0)
-            )
-        )
-    vt = VisitType(name="Consultation", name_ar="كشف", duration_minutes=20, default_price=300)
-    db.add(vt)
-    db.flush()
-    profile = PatientProfile(
-        code=f"P-F{secrets.token_hex(4).upper()}", full_name="Fin Patient", phone="010"
-    )
-    db.add(profile)
-    db.flush()
-    appt = Appointment(
-        booking_ref=f"BK-F{secrets.token_hex(4).upper()}", patient_profile_id=profile.id,
-        doctor_id=doctor.id, visit_type_id=vt.id, date=TODAY,
-        start_time=time(17, 0), end_time=time(17, 20), status="booked", source="staff",
-    )
-    db.add(appt)
-    db.commit()
-    doc_email = doc_user.email
-    result = {
-        "doctor_id": doctor.id, "doc_email": doc_email, "visit_type_id": vt.id,
-        "profile_id": profile.id, "appointment_id": appt.id,
-    }
-    db.close()
-
-    token = client.post(
-        "/api/auth/login", json={"email": doc_email, "password": "passw0rd"},
-        headers=csrf_headers(client),
-    ).json()["access_token"]
-    result["token"] = token
-    return result
 
 
 def admin_headers(client):
@@ -324,7 +267,6 @@ def test_syndicate_price_and_balance(client, clinic):
         headers=admin,
     )
     # assign the patient to the syndicate
-    from app.models.identity import PatientProfile
 
     db = SessionLocal()
     profile = db.get(PatientProfile, clinic["profile_id"])

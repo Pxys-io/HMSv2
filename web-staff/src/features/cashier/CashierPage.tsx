@@ -26,6 +26,11 @@ type Invoice = {
   status: string
   items: { id: number; description: string; unit_price: number; qty: number; line_total: number }[]
   subtotal: number
+  tax_rate: number
+  tax_total: number
+  vat_inclusive: boolean
+  vat_exempt: boolean
+  vat_number: string
   payments: { id: number; amount: number; method: string; is_refund: boolean }[]
   discounts: { id: number; kind: string; value: number }[]
   syndicate_due: number
@@ -278,6 +283,13 @@ function ItemsModal({
         </div>
         <div className="mt-4 flex justify-end gap-4 border-t border-border pt-3 text-sm">
           <span className="text-ink-600">Subtotal: <b className="font-mono">{invoice.subtotal.toFixed(2)}</b></span>
+          {invoice.tax_rate > 0 && (
+            <span className="text-ink-600">
+              VAT {invoice.tax_rate}%{invoice.vat_inclusive ? ' (incl.)' : ''}:{' '}
+              <b className="font-mono">{invoice.tax_total.toFixed(2)}</b>
+            </span>
+          )}
+          <span className="text-ink-600">Total: <b className="font-mono">{invoice.total.toFixed(2)}</b></span>
           <span className="text-ink-600">Patient due: <b className="font-mono">{invoice.patient_due.toFixed(2)}</b></span>
         </div>
       </div>

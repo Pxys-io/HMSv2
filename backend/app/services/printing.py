@@ -41,8 +41,10 @@ def validate_template_html(body: str) -> None:
             "patient.name", "patient.age", "patient.code", "patient.gender",
             "doctor.name", "doctor.specialty", "date", "rx.items_table",
             "diagnoses", "visit.summary", "invoice.number", "invoice.items_table",
-            "invoice.subtotal", "invoice.discount", "invoice.total",
-            "invoice.paid", "invoice.remaining", "sick.days", "sick.from", "sick.to",
+            "invoice.subtotal", "invoice.discount", "invoice.taxable",
+            "invoice.tax_rate", "invoice.tax_total", "invoice.total",
+            "invoice.paid", "invoice.remaining", "invoice.vat_number",
+            "sick.days", "sick.from", "sick.to",
             "referral.to", "referral.reason",
         }
     ]
@@ -156,8 +158,12 @@ def build_context(db: Session, key: str, entity_id: int) -> dict:
                 "invoice.items_table": _invoice_items_table(db, invoice),
                 "invoice.subtotal": f"{float(invoice.subtotal):.2f}",
                 "invoice.discount": f"{float(invoice.discount_total):.2f}",
+                "invoice.taxable": f"{float(invoice.subtotal) - float(invoice.discount_total):.2f}",
+                "invoice.tax_rate": f"{float(invoice.tax_rate):g}",
+                "invoice.tax_total": f"{float(invoice.tax_total):.2f}",
                 "invoice.total": f"{float(invoice.total):.2f}",
                 "invoice.paid": f"{float(invoice.paid_total):.2f}",
+                "invoice.vat_number": invoice.vat_number or "",
                 "invoice.remaining": _invoice_remaining(invoice),
             }
         )

@@ -404,6 +404,10 @@ def create_manual_invoice(
     )
     db.add(invoice)
     db.flush()
+    from app.services.billing import _apply_tax, snapshot_vat
+
+    snapshot_vat(db, invoice)
+    _apply_tax(invoice)
     for item in body.items:
         db.add(
             InvoiceItem(

@@ -6,6 +6,10 @@ this file first, so this is safe.
 
 import base64
 import os
+import secrets
+from datetime import date, time
+
+TODAY = date.today()
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_hmsv2.db"
 os.environ["AUDIT_DATABASE_URL"] = "sqlite:///./test_hmsv2_audit.db"
@@ -17,12 +21,16 @@ os.environ["IDEMPOTENCY_TTL_DAYS"] = "7"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import select  # noqa: E402
 
 from app.audit.models import AuditBase  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, audit_engine, engine  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.models.identity import Doctor, PatientProfile, StaffUser  # noqa: E402
+from app.models.scheduling import Appointment, DoctorSchedule, VisitType  # noqa: E402
+from app.services.roles import role_id as _rid  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -37,7 +45,6 @@ def _fresh_databases():
     from app.services.roles import seed_system_roles
 
     seed_system_roles(session)
-    from sqlalchemy import select
 
     from app.models.identity import Role, StaffUser
 
@@ -87,7 +94,6 @@ def client():
 
 
 def make_staff(db, *, email, password="passw0rd", role="secretary", is_active=True):
-    from sqlalchemy import select
 
     from app.models.identity import Role, StaffUser
 
@@ -124,6 +130,62 @@ def secretary_user():
     user = session.query(StaffUser).filter_by(email="sec@example.com").one()
     session.close()
     return user
+
+
+@pytest.fixture()
+def clinic(client):
+    db = SessionLocal()
+    doc_user = StaffUser(
+        email=f"fin-{secrets.token_hex(4)}@example.com",
+        password_hash=hash_password("passw0rd"), full_name="Fin Doc",
+        role_id=_rid(db, "doctor"), is_active=True,
+    )
+    db.add(doc_user)
+    db.flush()
+    doctor = Doctor(
+        staff_user_id=doc_user.id, specialty="T", booking_mode="slots",
+        default_slot_minutes=20, buffer_minutes=0, slot_capacity=4,
+        billing_mode="per_visit", is_bookable_online=True,
+    )
+    db.add(doctor)
+    db.flush()
+    for wd in range(7):
+        db.add(
+            DoctorSchedule(
+                doctor_id=doctor.id, weekday=wd, start_time=time(17, 0), end_time=time(21, 0)
+            )
+        )
+    vt = VisitType(name="Consultation", name_ar="كشف", duration_minutes=20, default_price=300)
+    db.add(vt)
+    db.flush()
+    profile = PatientProfile(
+        code=f"P-F{secrets.token_hex(4).upper()}", full_name="Fin Patient", phone="010"
+    )
+    db.add(profile)
+    db.flush()
+    appt = Appointment(
+        booking_ref=f"BK-F{secrets.token_hex(4).upper()}", patient_profile_id=profile.id,
+        doctor_id=doctor.id, visit_type_id=vt.id, date=TODAY,
+        start_time=time(17, 0), end_time=time(17, 20), status="booked", source="staff",
+    )
+    db.add(appt)
+    db.commit()
+    doc_email = doc_user.email
+    result = {
+        "doctor_id": doctor.id, "doc_email": doc_email, "visit_type_id": vt.id,
+        "profile_id": profile.id, "appointment_id": appt.id,
+    }
+    db.close()
+
+    token = client.post(
+        "/api/auth/login", json={"email": doc_email, "password": "passw0rd"},
+        headers=csrf_headers(client),
+    ).json()["access_token"]
+    result["token"] = token
+    return result
+
+
+
 
 
 def csrf_headers(client) -> dict:

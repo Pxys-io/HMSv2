@@ -66,19 +66,23 @@ ${rx.items_table}
 <p><strong>المريض:</strong> ${patient.name} <span dir="ltr">(${patient.code})</span></p>
 <p><strong>الفاتورة:</strong> ${invoice.number}</p>
 ${invoice.items_table}
-<table class="totals"><tr><td>الإجمالي</td><td>${invoice_total} ج.م</td></tr>
-<tr><td>الخصم</td><td>${invoice_discount}</td></tr>
-<tr><td>المدفوع</td><td>${invoice_paid}</td></tr>
-<tr><td>المتبقي</td><td>${invoice_remaining}</td></tr></table>
+<table class="totals"><tr><td>الإجمالي</td><td>${invoice.subtotal} ج.م</td></tr>
+<tr><td>الخصم</td><td>${invoice.discount}</td></tr>
+<tr><td>الضريبة (${invoice.tax_rate}%)</td><td>${invoice.tax_total} ج.م</td></tr>
+<tr><td>المدفوع</td><td>${invoice.paid}</td></tr>
+<tr><td>المتبقي</td><td>${invoice.remaining}</td></tr></table>
+<p><small>الضريبة شاملة: ${invoice.vat_number}</small></p>
 """),
         "en": ("Invoice", """
 <p><strong>Patient:</strong> ${patient.name} <span dir="ltr">(${patient.code})</span></p>
 <p><strong>Invoice:</strong> ${invoice.number}</p>
 ${invoice.items_table}
-<table class="totals"><tr><td>Total</td><td>${invoice_total} EGP</td></tr>
-<tr><td>Discount</td><td>${invoice_discount}</td></tr>
-<tr><td>Paid</td><td>${invoice_paid}</td></tr>
-<tr><td>Remaining</td><td>${invoice_remaining}</td></tr></table>
+<table class="totals"><tr><td>Subtotal</td><td>${invoice.subtotal} EGP</td></tr>
+<tr><td>Discount</td><td>${invoice.discount}</td></tr>
+<tr><td>VAT (${invoice.tax_rate}%)</td><td>${invoice.tax_total}</td></tr>
+<tr><td>Paid</td><td>${invoice.paid}</td></tr>
+<tr><td>Remaining</td><td>${invoice.remaining}</td></tr></table>
+<p><small>VAT No: ${invoice.vat_number}</small></p>
 """),
     },
 }

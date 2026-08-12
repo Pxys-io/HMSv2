@@ -89,6 +89,40 @@ export function SettingsTab() {
       </Card>
 
       <Card className="space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-ink-600">VAT / Tax</h2>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="text-xs text-ink-600">
+            VAT rate (%)
+            <input className={inputClass + ' mt-1'} type="number" min={0} max={100} value={num('billing.vat_rate_pct')} onChange={(e) => set('billing.vat_rate_pct', Number(e.target.value))} />
+          </label>
+          <label className="text-xs text-ink-600">
+            VAT number
+            <input className={inputClass + ' mt-1'} value={str('billing.vat_number')} onChange={(e) => set('billing.vat_number', e.target.value)} />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink-600">
+          <input
+            type="checkbox"
+            checked={Boolean(values['billing.vat_inclusive'])}
+            onChange={(e) => set('billing.vat_inclusive', e.target.checked)}
+          />
+          Prices include VAT (inclusive)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-ink-600">
+          <input
+            type="checkbox"
+            checked={Boolean(values['billing.vat_exempt'])}
+            onChange={(e) => set('billing.vat_exempt', e.target.checked)}
+          />
+          VAT-exempt clinic (no tax on invoices)
+        </label>
+        <p className="text-xs text-ink-400">
+          Tax is snapshotted onto each invoice at creation; later changes only
+          affect new invoices. Payments and reports use the total unchanged.
+        </p>
+      </Card>
+
+      <Card className="space-y-3 p-4">
         <h2 className="text-sm font-semibold text-ink-600">Cashier permissions</h2>
         <label className="flex items-center gap-2 text-sm text-ink-600">
           <input

@@ -44,6 +44,40 @@ def _lock_invoice(db: Session, invoice_id: int) -> None:
         db.flush()
 
 
+def snapshot_vat(db: Session, invoice: Invoice) -> None:
+    """V1 (Plan/14 A3): copies the clinic VAT config onto the invoice at
+    creation — later settings changes never touch existing invoices."""
+    from app.services.settings import get_setting
+
+    invoice.vat_exempt = bool(get_setting(db, "billing.vat_exempt", False))
+    if not invoice.vat_exempt:
+        invoice.tax_rate = round(float(get_setting(db, "billing.vat_rate_pct", 0) or 0), 2)
+        invoice.vat_inclusive = bool(get_setting(db, "billing.vat_inclusive", True))
+        invoice.vat_number = str(get_setting(db, "billing.vat_number", "") or "")
+    else:
+        invoice.tax_rate = 0
+        invoice.vat_inclusive = True
+
+
+def _apply_tax(invoice: Invoice) -> None:
+    """V2 math: taxable = subtotal - discount; tax_total per inclusive/exclusive."""
+    taxable = round(float(invoice.subtotal) - float(invoice.discount_total), 2)
+    if invoice.vat_exempt or float(invoice.tax_rate) <= 0:
+        invoice.tax_total = 0
+        invoice.total = taxable
+    elif invoice.vat_inclusive:
+        invoice.tax_total = round(
+            taxable * float(invoice.tax_rate) / (100 + float(invoice.tax_rate)), 2
+        )
+        invoice.total = taxable
+    else:
+        invoice.tax_total = round(taxable * float(invoice.tax_rate) / 100, 2)
+        invoice.total = round(taxable + invoice.tax_total, 2)
+    invoice.patient_due = round(
+        max(invoice.total - float(invoice.syndicate_due), 0), 2
+    )
+
+
 def next_invoice_number(db: Session) -> str:
     year = _now().year
     return f"INV-{year}-{next_sequence(db, 'invoice', year):06d}"
@@ -99,6 +133,8 @@ def create_invoice_from_visit(
     )
     db.add(invoice)
     db.flush()
+    snapshot_vat(db, invoice)
+    _apply_tax(invoice)
     db.add(
         InvoiceItem(
             invoice_id=invoice.id,
@@ -148,6 +184,12 @@ def invoice_payload(db: Session, invoice: Invoice) -> dict:
         "syndicate_id": invoice.syndicate_id,
         "subtotal": float(invoice.subtotal),
         "discount_total": float(invoice.discount_total),
+        "taxable": round(float(invoice.subtotal) - float(invoice.discount_total), 2),
+        "tax_rate": float(invoice.tax_rate),
+        "tax_total": float(invoice.tax_total),
+        "vat_inclusive": invoice.vat_inclusive,
+        "vat_exempt": invoice.vat_exempt,
+        "vat_number": invoice.vat_number,
         "total": float(invoice.total),
         "patient_due": float(invoice.patient_due),
         "syndicate_due": float(invoice.syndicate_due),
@@ -167,7 +209,8 @@ def invoice_payload(db: Session, invoice: Invoice) -> dict:
             {
                 "id": i.id, "description": i.description, "description_ar": i.description_ar,
                 "qty": float(i.qty), "unit_price": float(i.unit_price),
-                    "line_total": float(i.line_total),
+                "line_total": float(i.line_total),
+                "tax_rate": float(i.tax_rate) if i.tax_rate is not None else None,
             }
             for i in items
         ],
@@ -188,10 +231,7 @@ def invoice_payload(db: Session, invoice: Invoice) -> dict:
 
 
 def _recompute(invoice: Invoice) -> None:
-    invoice.total = round(float(invoice.subtotal) - float(invoice.discount_total), 2)
-    invoice.patient_due = round(invoice.total - float(invoice.syndicate_due), 2)
-    if invoice.patient_due < 0:
-        invoice.patient_due = 0
+    _apply_tax(invoice)
 
 
 def add_discount(
@@ -401,7 +441,9 @@ def adjust_item(
     ).all()
     invoice.subtotal = round(sum(float(i.line_total) for i in items), 2)
     invoice.total = round(invoice.subtotal - float(invoice.discount_total), 2)
-    invoice.patient_due = round(max(invoice.total - float(invoice.syndicate_due), 0), 2)
+    invoice.patient_due = round(
+        max(invoice.total - float(invoice.syndicate_due), 0), 2
+    )
 
     with audit.audited_action(
         audit_db,
