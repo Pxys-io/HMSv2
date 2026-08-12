@@ -36,7 +36,7 @@ const en = {
     admin: 'Admin',
   },
   erp: {
-    tabs: { tasks: 'Tasks', referrals: 'Referrals', labOrders: 'Lab orders', duplicates: 'Duplicates', inventory: 'Inventory', hr: 'HR' },
+    tabs: { tasks: 'Tasks', referrals: 'Referrals', 'lab-orders': 'Lab orders', duplicates: 'Duplicates', inventory: 'Inventory', hr: 'HR' },
     task: { add: 'Add', done: 'done', delete: 'delete', newTask: 'New task title', priority: 'Priority', due: 'Due' },
     referral: { outcome: 'Outcome', record: 'Record outcome' },
     lab: { update: 'Update' },
@@ -99,7 +99,7 @@ const ar: typeof en = {
     admin: 'الإدارة',
   },
   erp: {
-    tabs: { tasks: 'المهام', referrals: 'التحويلات', labOrders: 'طلبات التحاليل', duplicates: 'المكرر', inventory: 'المخزون', hr: 'الموارد البشرية' },
+    tabs: { tasks: 'المهام', referrals: 'التحويلات', 'lab-orders': 'طلبات التحاليل', duplicates: 'المكرر', inventory: 'المخزون', hr: 'الموارد البشرية' },
     task: { add: 'إضافة', done: 'تم', delete: 'حذف', newTask: 'عنوان مهمة جديدة', priority: 'الأولوية', due: 'الاستحقاق' },
     referral: { outcome: 'النتيجة', record: 'تسجيل النتيجة' },
     lab: { update: 'تحديث' },
