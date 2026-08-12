@@ -13,6 +13,7 @@ from datetime import time
 from sqlalchemy import select
 
 from app.core.security import hash_password
+from app.data.icd10 import ICD10_SEED
 from app.db.session import SessionLocal
 from app.models.comms import PrintTemplate
 from app.models.config import Setting
@@ -159,6 +160,12 @@ def seed() -> None:
                             name=name, name_ar=name_ar, form=form, strength=strength
                         )
                     )
+
+        from app.models.icd10 import Icd10Code
+
+        for code, label_en, label_ar in ICD10_SEED:
+            if db.scalar(select(Icd10Code).where(Icd10Code.code == code)) is None:
+                db.add(Icd10Code(code=code, label_en=label_en, label_ar=label_ar))
 
         for key, locales in PRINT_TEMPLATES.items():
             for locale, (title, body) in locales.items():

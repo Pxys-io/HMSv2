@@ -50,6 +50,15 @@ DEFAULT_SETTINGS = {
     "reminder.sms_gateway_url": "",
     "reminder.sms_token": "",
     "reminder.sms_sender": "",
+    "vitals.reference_ranges": {
+        "bp_sys": {"min": 90, "max": 140, "unit": "mmHg"},
+        "bp_dia": {"min": 60, "max": 90, "unit": "mmHg"},
+        "hr": {"min": 60, "max": 100, "unit": "bpm"},
+        "temp": {"min": 36.0, "max": 37.5, "unit": "°C"},
+        "spo2": {"min": 95, "max": 100, "unit": "%"},
+        "weight": {"min": None, "max": None, "unit": "kg"},
+        "height": {"min": None, "max": None, "unit": "cm"},
+    },
     "petty_cash.opening_balance": 0,
     "petty_cash.categories": ["office", "medical", "transport", "staff", "other"],
     "reminder.whatsapp_template_ar": (

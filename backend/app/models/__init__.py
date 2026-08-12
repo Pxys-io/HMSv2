@@ -20,6 +20,7 @@ from app.models.emr import (
     VisitDiagnosis,
 )
 from app.models.expense import Expense, PettyCashTransaction
+from app.models.icd10 import Icd10Code
 from app.models.identity import (
     Doctor,
     NumberSequence,
@@ -28,6 +29,7 @@ from app.models.identity import (
     RefreshToken,
     StaffUser,
 )
+from app.models.labs import LabResult
 from app.models.ops import LabOrder, Referral
 from app.models.queueing import QueueEntry
 from app.models.scheduling import Appointment, DoctorSchedule, ScheduleBlock, VisitType
@@ -41,7 +43,9 @@ __all__ = [
     "Attachment",
     "CommunicationLogEntry",
     "DuplicateGroup",
+    "Icd10Code",
     "LabOrder",
+    "LabResult",
     "PatientTag",
     "Referral",
     "Task",

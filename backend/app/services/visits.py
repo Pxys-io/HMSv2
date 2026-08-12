@@ -163,6 +163,10 @@ def patch(
             if visit_type is None or not visit_type.is_active:
                 raise AppError("NOT_FOUND", "visit type not found")
 
+    if "vitals" in fields:
+        from app.services.vitals import flag_vitals
+
+        fields["vitals"] = flag_vitals(db, fields.get("vitals"))
     before = {"record_version": visit.record_version}
     for field, value in fields.items():
         setattr(visit, field, value)
