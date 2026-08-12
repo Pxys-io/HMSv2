@@ -68,6 +68,16 @@ def list_visit_labs(visit_id: int, current: viewer, db: DbDep):
     return {"items": [_payload(r) for r in rows]}
 
 
+@router.get("/patients/{profile_id}/growth")
+def growth_report_route(
+    profile_id: int, current: viewer, db: DbDep,
+    metric: str = Query(default="weight", pattern="^(weight|height)$"),
+):
+    from app.services.growth import growth_report
+
+    return growth_report(db, profile_id, metric)
+
+
 @router.get("/patients/{profile_id}/lab-trends")
 def lab_trends(
     profile_id: int, current: viewer, db: DbDep,
