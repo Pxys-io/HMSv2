@@ -50,6 +50,7 @@ DEFAULT_SETTINGS = {
     "reminder.sms_gateway_url": "",
     "reminder.sms_token": "",
     "reminder.sms_sender": "",
+    "visit_form.sections": [],
     "vitals.reference_ranges": {
         "bp_sys": {"min": 90, "max": 140, "unit": "mmHg"},
         "bp_dia": {"min": 60, "max": 90, "unit": "mmHg"},

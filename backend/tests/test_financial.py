@@ -26,6 +26,31 @@ def admin_headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 
+def _book_and_check_in(client, clinic, headers):
+    """Books, checks in, and starts a visit; returns the queue entry."""
+    client.post(
+        "/api/appointments",
+        json={"patient_profile_id": clinic["profile_id"], "doctor_id": clinic["doctor_id"],
+              "visit_type_id": clinic["visit_type_id"], "date": TODAY.isoformat(),
+              "start_time": "17:00"},
+        headers={**headers, "Idempotency-Key": f"bk-{secrets.token_hex(4)}"},
+    )
+    client.post(
+        "/api/queue/check-in",
+        json={"appointment_id": clinic["appointment_id"]},
+        headers={**headers, "Idempotency-Key": f"ci-{secrets.token_hex(4)}"},
+    )
+    entry = client.get(
+        f"/api/queue?doctor_id={clinic['doctor_id']}&date={TODAY.isoformat()}",
+        headers=headers,
+    ).json()["entries"][0]
+    client.post(
+        f"/api/queue/{entry['id']}/start",
+        headers={**headers, "Idempotency-Key": f"st-{secrets.token_hex(4)}"},
+    )
+    return entry
+
+
 def _complete_visit(client, clinic, token=None):
     """Books, checks in, starts, and completes a visit -> auto-invoice."""
     admin = admin_headers(client)

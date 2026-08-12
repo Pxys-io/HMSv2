@@ -6,6 +6,7 @@ import { RolesTab } from './RolesTab'
 import { PricingTab } from './PricingTab'
 import { SettingsTab } from './SettingsTab'
 import { StaffTab } from './StaffTab'
+import { VisitFormTab } from './VisitFormTab'
 import { SyndicatesTab } from './SyndicatesTab'
 
 const TABS = [
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'custom-fields', label: 'Custom fields' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'syndicates', label: 'Syndicates' },
+  { id: 'visit-form', label: 'Visit form' },
   { id: 'settings', label: 'Settings' },
 ]
 
@@ -46,6 +48,7 @@ export default function AdminPage() {
       {tab === 'pricing' && <PricingTab />}
       {tab === 'syndicates' && <SyndicatesTab />}
       {tab === 'settings' && <SettingsTab />}
+      {tab === 'visit-form' && <VisitFormTab />}
     </div>
   )
 }

@@ -37,6 +37,7 @@ from app.api.routes import (
     tags,
     tasks,
     users,
+    visit_form,
 )
 from app.api.routes import (
     audit as audit_router,
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(public_auth.router)
     app.include_router(csrf.router)
     app.include_router(users.router)
+    app.include_router(visit_form.router)
     app.include_router(doctors.router)
     app.include_router(scheduling.router)
     app.include_router(appointments.router)

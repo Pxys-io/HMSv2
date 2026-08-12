@@ -5,6 +5,7 @@ import { fetchBlob, get, patch, post, put, uploadFile } from '../../api/client'
 import { toast } from 'sonner'
 import { Button, Card, Field, Modal, StatusBadge, inputClass } from '../../components/ui'
 import { CameraCapture } from '../../components/pwa'
+import { DynamicFields } from '../admin/DynamicFields'
 
 type VisitTypeRow = {
   id: number
@@ -31,6 +32,7 @@ type Visit = {
   plan: string | null
   notes_next_visit: string | null
   notes_private: string | null
+  custom_data: Record<string, unknown> | null
   follow_up_weeks: number | null
   follow_up_due: string | null
   started_at: string | null
@@ -63,20 +65,26 @@ type TimelineCard = {
   [key: string]: unknown
 }
 
-const SECTIONS = [
-  ['chief_complaint', 'Chief complaint'],
-  ['history', 'History'],
-  ['clinical_exam', 'Clinical exam'],
-  ['findings', 'Findings'],
-  ['labs', 'Labs'],
-  ['imaging', 'Imaging'],
-  ['plan', 'Plan'],
-  ['notes_next_visit', 'Notes for next visit'],
+type FormSection = {
+  key: string
+  label_en: string
+  label_ar: string
+  type: string
+  required: boolean
+  enabled: boolean
+  options?: string[] | null
+}
+
+// Built-in section keys are fixed visit columns; the exam form renders the
+// order/labels/enabled flags from /api/visit-form/sections (admin-designed).
+const BUILTIN_KEYS = [
+  'chief_complaint', 'history', 'clinical_exam', 'findings',
+  'labs', 'imaging', 'plan', 'notes_next_visit',
 ] as const
 
 function buildFields(draft: Record<string, unknown>): Record<string, unknown> {
   const fields: Record<string, unknown> = {}
-  for (const [key] of SECTIONS) {
+  for (const key of BUILTIN_KEYS) {
     const value = draft[key]
     if (typeof value === 'string' && value.trim() === '') {
       fields[key] = null
@@ -86,6 +94,10 @@ function buildFields(draft: Record<string, unknown>): Record<string, unknown> {
   }
   if (draft.follow_up_weeks !== undefined) {
     fields.follow_up_weeks = draft.follow_up_weeks === '' ? null : Number(draft.follow_up_weeks)
+  }
+  const custom = draft.custom_data as Record<string, unknown> | undefined
+  if (custom && Object.keys(custom).length > 0) {
+    fields.custom_data = custom
   }
   const vitals = draft.vitals as Record<string, unknown> | undefined
   if (vitals && Object.values(vitals).some((v) => v !== null && v !== undefined)) {
@@ -120,6 +132,13 @@ export default function ExamPage() {
   const [customProcedure, setCustomProcedure] = useState('')
   const [typeError, setTypeError] = useState('')
 
+  const formConfig = useQuery({
+    queryKey: ['visit-form'],
+    queryFn: () => get<{ sections: FormSection[] }>('/api/visit-form/sections'),
+  })
+  const activeSections = (formConfig.data?.sections ?? []).filter(
+    (section) => section.enabled && (BUILTIN_KEYS as readonly string[]).includes(section.key)
+  )
   const visitTypes = useQuery({
     queryKey: ['visit-types'],
     queryFn: () => get<VisitTypeRow[]>('/api/visit-types'),
@@ -395,18 +414,25 @@ export default function ExamPage() {
           </Field>
         </Card>
 
-        {SECTIONS.map(([key, label]) => (
-          <Card key={key} className="p-3">
-            <Field label={label}>
+        {activeSections.map((section) => (
+          <Card key={section.key} className="p-3">
+            <Field label={label(section)}>
               <textarea
-                rows={key === 'chief_complaint' ? 2 : 3}
+                rows={section.key === 'chief_complaint' ? 2 : 3}
                 className={inputClass}
-                value={(draft[key] as string) ?? ''}
-                onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                value={(draft[section.key] as string) ?? ''}
+                onChange={(e) => setDraft({ ...draft, [section.key]: e.target.value })}
               />
             </Field>
           </Card>
         ))}
+        {!readOnly && (
+          <DynamicFields
+            entity="visit"
+            value={(draft.custom_data as Record<string, unknown>) ?? {}}
+            onChange={(next) => setDraft({ ...draft, custom_data: next })}
+          />
+        )}
 
         <Card className="p-3">
           <Field label="Follow-up in weeks">
@@ -909,6 +935,10 @@ function VitalInput({
 const ROUTES = ['oral', 'topical', 'sublingual', 'inhalation', 'IV', 'IM', 'SC',
   'eye', 'ear', 'nasal', 'rectal', 'vaginal']
 
+function label(section: FormSection): string {
+  return `${section.label_ar || section.label_en}${section.required ? ' *' : ''}`
+}
+
 async function printRx(visitId: number) {
   try {
     const { token } = await post<{ token: string }>(
@@ -932,7 +962,17 @@ const SUMMARY_SECTIONS: [keyof Visit, string][] = [
   ['notes_next_visit', 'Notes for next visit'],
 ]
 
+
+
 function VisitSummary({ visit }: { visit: Visit }) {
+  const { data: formData } = useQuery({
+    queryKey: ['visit-form'],
+    queryFn: () => get<{ sections: FormSection[] }>('/api/visit-form/sections'),
+  })
+  const sectionLabel = (key: string, fallback: string) => {
+    const found = (formData?.sections ?? []).find((section) => section.key === key)
+    return found?.label_ar || found?.label_en || fallback
+  }
   const vitals = (visit.vitals ?? {}) as Record<string, unknown>
   const differential = visit.diagnoses.filter((d) => d.kind === 'differential')
   const final = visit.diagnoses.filter((d) => d.kind === 'final')
@@ -989,12 +1029,26 @@ function VisitSummary({ visit }: { visit: Visit }) {
         </Card>
       )}
 
-      {sections.map(([key, label]) => (
+      {sections.map(([key, fallback]) => (
         <Card key={key} className="p-4">
-          <h2 className="text-sm font-semibold text-ink-600">{label}</h2>
+          <h2 className="text-sm font-semibold text-ink-600">{sectionLabel(key, fallback)}</h2>
           <p className="mt-2 whitespace-pre-wrap text-sm text-ink-800">{String(visit[key])}</p>
         </Card>
       ))}
+
+      {visit.custom_data && Object.keys(visit.custom_data).length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-ink-600">Extra fields</h2>
+          <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+            {Object.entries(visit.custom_data as Record<string, unknown>).map(([k, v]) => (
+              <div key={k} className="rounded-lg bg-slate-50 p-2">
+                <dt className="text-xs text-ink-500">{sectionLabel(k, k)}</dt>
+                <dd className="text-ink-800">{String(v ?? '—')}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      )}
 
       {(differential.length > 0 || final.length > 0) && (
         <Card className="p-4">

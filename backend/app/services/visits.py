@@ -250,6 +250,9 @@ def complete(
 ) -> Visit:
     if visit.status == "completed":
         raise AppError("CONFLICT", "visit already completed")
+    from app.services.visit_form import check_required_on_complete
+
+    check_required_on_complete(db, visit)
     doctor = db.scalar(select(Doctor).where(Doctor.staff_user_id == actor.id))
     if actor.role != "admin" and (doctor is None or doctor.id != visit.doctor_id):
         raise AppError("FORBIDDEN", "not your visit")
