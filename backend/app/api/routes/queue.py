@@ -20,6 +20,7 @@ from app.models.queueing import QueueEntry
 from app.models.scheduling import Appointment
 from app.schemas.scheduling import PatientProfileCreate
 from app.services import queue as queue_service
+from app.services.activity import log_activity
 from app.services.broadcast import queue_broadcaster
 from app.services.idempotency import claim, complete, get_key_from_request
 from app.services.sequences import next_patient_code
@@ -185,6 +186,8 @@ def check_in(
     if appt is None:
         raise AppError("NOT_FOUND", "appointment not found")
     entry = queue_service.check_in(db, audit_db, appointment=appt, **_base_kwargs(request, current))
+    log_activity(db, patient_profile_id=appt.patient_profile_id, type="appointment.checked_in",
+                 actor_id=current.id, actor_label=current.email, entry_id=entry.id)
     payload = _entry_payload(entry, db)
     _finish_idem(request, db, current, payload)
     return payload
@@ -217,6 +220,8 @@ def walk_in(
         doctor_id=body.doctor_id, visit_type_id=body.visit_type_id, profile=profile,
         target_date=target, **_base_kwargs(request, current),
     )
+    log_activity(db, patient_profile_id=profile.id, type="walk_in.created",
+                 actor_id=current.id, actor_label=current.email, entry_id=entry.id)
     payload = _entry_payload(entry, db)
     _finish_idem(request, db, current, payload)
     return payload
@@ -279,6 +284,8 @@ def start_entry(
     if entry is None:
         raise AppError("NOT_FOUND", "queue entry not found")
     updated = queue_service.start(db, audit_db, entry=entry, **_base_kwargs(request, current))
+    log_activity(db, patient_profile_id=entry.patient_profile_id, type="visit.created",
+                 actor_id=current.id, actor_label=current.email, entry_id=entry.id)
     payload = _entry_payload(updated, db)
     _finish_idem(request, db, current, payload)
     return payload

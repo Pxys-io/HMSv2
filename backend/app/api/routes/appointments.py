@@ -16,6 +16,7 @@ from app.models.identity import PatientProfile, StaffUser
 from app.models.scheduling import Appointment
 from app.schemas.scheduling import AppointmentCancel, AppointmentCreate, AppointmentMove
 from app.services import appointments as appt_service
+from app.services.activity import log_activity
 from app.services.idempotency import claim, get_key_from_request
 
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
@@ -102,6 +103,9 @@ def staff_book(
         follow_up_of_id=body.follow_up_of_id,
         idempotency_key=key,
     )
+    log_activity(db, patient_profile_id=body.patient_profile_id, type="appointment.booked",
+                 actor_id=current.id, actor_label=current.email,
+                 appointment_id=appt.id, doctor_id=body.doctor_id)
     return _payload(appt, db)
 
 
@@ -136,6 +140,10 @@ def move_appointment(
         ip=request.client.host if request.client else None,
         new_date=body.date, new_start=body.start_time,
     )
+    log_activity(db, patient_profile_id=moved.patient_profile_id, type="appointment.moved",
+                 actor_id=current.id, actor_label=current.email,
+                 appointment_id=moved.id, to_date=moved.date.isoformat(),
+                 to_start=moved.start_time.isoformat() if moved.start_time else None)
     return _payload(moved, db)
 
 
@@ -158,6 +166,9 @@ def cancel_appointment(
         ip=request.client.host if request.client else None,
         reason=body.reason,
     )
+    log_activity(db, patient_profile_id=cancelled.patient_profile_id, type="appointment.cancelled",
+                 actor_id=current.id, actor_label=current.email,
+                 appointment_id=cancelled.id, reason=body.reason)
     return _payload(cancelled, db)
 
 
@@ -178,4 +189,7 @@ def no_show_appointment(
         correlation_id=get_request_id(request),
         ip=request.client.host if request.client else None,
     )
+    log_activity(db, patient_profile_id=updated.patient_profile_id, type="appointment.no_show",
+                 actor_id=current.id, actor_label=current.email,
+                 appointment_id=updated.id)
     return _payload(updated, db)

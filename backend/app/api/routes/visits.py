@@ -21,6 +21,7 @@ from app.schemas.emr import (
 )
 from app.services import attachments as attachments_service
 from app.services import visits as visit_service
+from app.services.activity import log_activity
 from app.services.idempotency import claim, complete, get_key_from_request
 
 router = APIRouter(prefix="/api", tags=["visits"])
@@ -141,6 +142,8 @@ def create_visit(
         patient_profile_id=body.patient_profile_id,
         visit_type_id=body.visit_type_id,
     )
+    log_activity(db, patient_profile_id=visit.patient_profile_id, type="visit.created",
+                 actor_id=current.id, actor_label=current.email, visit_id=visit.id)
     payload = _role_payload(db, visit, current)
     _finish_idem(request, db, current, payload)
     return payload
@@ -185,6 +188,9 @@ def patch_visit(
         ip=request.client.host if request.client else None,
         fields=fields, expected_version=body.record_version,
     )
+    if "notes" in fields and fields.get("notes"):
+        log_activity(db, patient_profile_id=updated.patient_profile_id, type="note.added",
+                     actor_id=current.id, actor_label=current.email, visit_id=updated.id)
     payload = _role_payload(db, updated, current)
     _finish_idem(request, db, current, payload)
     return payload
@@ -229,6 +235,8 @@ def complete_visit(
         db, audit_db, visit=visit, actor=current, correlation_id=get_request_id(request),
         ip=request.client.host if request.client else None,
     )
+    log_activity(db, patient_profile_id=completed.patient_profile_id, type="visit.completed",
+                 actor_id=current.id, actor_label=current.email, visit_id=completed.id)
     payload = _role_payload(db, completed, current)
     _finish_idem(request, db, current, payload)
     return payload

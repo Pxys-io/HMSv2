@@ -14,6 +14,7 @@ from app.core.pagination import paginate
 from app.models.identity import PatientProfile, StaffUser
 from app.models.scheduling import Appointment
 from app.schemas.scheduling import PatientProfileCreate, PatientProfileUpdate
+from app.services.activity import list_activity, log_activity
 from app.services.custom_fields import validate_and_coerce as _validate_custom
 from app.services.sequences import next_patient_code
 
@@ -71,6 +72,8 @@ def create_patient(
         ip=request.client.host if request.client else None,
     ):
         db.commit()
+    log_activity(db, patient_profile_id=profile.id, type="patient.created",
+                 actor_id=current.id, actor_label=current.email)
     return _payload(profile)
 
 
@@ -80,6 +83,19 @@ def get_patient(profile_id: int, current: staff, db: DbDep):
     if profile is None:
         raise AppError("NOT_FOUND", "patient profile not found")
     return _payload(profile)
+
+
+@router.get("/{profile_id}/activity")
+def get_activity(
+    profile_id: int,
+    current: staff,
+    db: DbDep,
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    profile = db.get(PatientProfile, profile_id)
+    if profile is None:
+        raise AppError("NOT_FOUND", "patient profile not found")
+    return {"items": list_activity(db, profile_id, limit)}
 
 
 @router.get("/{profile_id}/appointments")
@@ -141,6 +157,9 @@ def patch_demographics(
         ip=request.client.host if request.client else None,
     ):
         db.commit()
+    changed = [f for f in body.model_fields_set if f != "custom_data"]
+    log_activity(db, patient_profile_id=profile.id, type="patient.updated",
+                 actor_id=current.id, actor_label=current.email, fields=changed)
     return _payload(profile)
 
 

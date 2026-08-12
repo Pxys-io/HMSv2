@@ -37,6 +37,7 @@ from app.schemas.financial import (
     SyndicateUpdate,
 )
 from app.services import billing as billing_service
+from app.services.activity import log_activity
 from app.services.idempotency import claim, complete, get_key_from_request
 from app.services.settings import clinic_timezone
 
@@ -541,6 +542,12 @@ def add_payment(
         reference=body.reference, actor=current, correlation_id=get_request_id(request),
         ip=request.client.host if request.client else None,
     )
+    log_activity(db, patient_profile_id=invoice.patient_profile_id, type="payment.received",
+                 actor_id=current.id, actor_label=current.email,
+                 invoice_id=invoice.id, amount=float(body.amount), method=body.method)
+    log_activity(db, patient_profile_id=invoice.patient_profile_id, type="payment.refunded",
+                 actor_id=current.id, actor_label=current.email,
+                 invoice_id=invoice.id, amount=float(body.amount))
     payload = billing_service.invoice_payload(db, updated)
     _finish(request, db, current, payload)
     return payload
