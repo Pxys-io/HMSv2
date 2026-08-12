@@ -144,6 +144,13 @@ def patch(
     if visit.record_version != expected_version:
         raise AppError("CONFLICT", "record changed; reload and review")
 
+    if "custom_data" in fields:
+        from app.services.custom_fields import validate_and_coerce
+
+        fields["custom_data"] = validate_and_coerce(db, "visit", fields.get("custom_data"))
+        if fields["custom_data"] is None:
+            fields.pop("custom_data", None)
+
     if "visit_type_id" in fields or "custom_type_name" in fields:
         if visit.status != "open":
             raise AppError("CONFLICT", "visit type can only change while the visit is open")

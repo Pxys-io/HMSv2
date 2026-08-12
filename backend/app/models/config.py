@@ -7,7 +7,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, Index, Integer, String
+from sqlalchemy import JSON, DateTime, Enum, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -55,3 +55,28 @@ class PublicAsset(TimestampMixin, Base):
     size_bytes: Mapped[int] = mapped_column(Integer)
     sha256: Mapped[str] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(default=True)
+
+
+class CustomField(TimestampMixin, Base):
+    __tablename__ = "custom_field"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity: Mapped[str] = mapped_column(Enum("patient", "visit", name="custom_field_entity"))
+    key: Mapped[str] = mapped_column(String(80))
+    label: Mapped[str] = mapped_column(String(200))
+    label_ar: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    type: Mapped[str] = mapped_column(
+        Enum(
+            "text", "textarea", "number", "date", "select", "multiselect", "boolean",
+            name="custom_field_type",
+        ),
+        default="text",
+    )
+    options: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    is_required: Mapped[bool] = mapped_column(default=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    order: Mapped[int] = mapped_column(default=0)
+
+    __table_args__ = (
+        UniqueConstraint("entity", "key", name="uq_custom_field_entity_key"),
+    )

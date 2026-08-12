@@ -14,6 +14,7 @@ from app.core.pagination import paginate
 from app.models.identity import PatientProfile, StaffUser
 from app.models.scheduling import Appointment
 from app.schemas.scheduling import PatientProfileCreate, PatientProfileUpdate
+from app.services.custom_fields import validate_and_coerce as _validate_custom
 from app.services.sequences import next_patient_code
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
@@ -42,6 +43,7 @@ def _payload(profile: PatientProfile) -> dict:
         "no_show_count": profile.no_show_count,
         "is_archived": profile.is_archived,
         "record_version": profile.record_version,
+        "custom_data": profile.custom_data,
     }
 
 
@@ -53,7 +55,11 @@ def create_patient(
     db: DbDep,
     audit_db: AuditDbDep,
 ):
-    profile = PatientProfile(code=next_patient_code(db), **body.model_dump())
+    payload = body.model_dump()
+    custom_data = payload.pop("custom_data", None)
+    profile = PatientProfile(code=next_patient_code(db), **payload)
+    if custom_data is not None:
+        profile.custom_data = _validate_custom(db, "patient", custom_data)
     db.add(profile)
     db.flush()
     with audit.audited_action(
@@ -122,6 +128,9 @@ def patch_demographics(
         raise AppError("NOT_FOUND", "patient profile not found")
     before = _payload(profile)
     for field in body.model_fields_set:
+        if field == "custom_data":
+            profile.custom_data = _validate_custom(db, "patient", getattr(body, field))
+            continue
         setattr(profile, field, getattr(body, field))
     with audit.audited_action(
         audit_db,

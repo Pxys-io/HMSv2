@@ -11,6 +11,7 @@ from app.api.routes import (
     appointments,
     chat,
     csrf,
+    custom_fields,
     doctors,
     files,
     financial,
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_router.router)
     app.include_router(settings_router.public_router)
     app.include_router(roles_router.router)
+    app.include_router(custom_fields.router)
 
     return app
 

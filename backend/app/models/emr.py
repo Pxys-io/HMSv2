@@ -46,6 +46,7 @@ class Visit(TimestampMixin, Base):
     follow_up_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
     follow_up_due: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     recall_dismissed_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    custom_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(Enum("open", "completed", name="visit_status"),
         default="open")
     record_version: Mapped[int] = mapped_column(Integer, default=1)

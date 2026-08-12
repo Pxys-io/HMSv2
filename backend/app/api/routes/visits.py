@@ -62,6 +62,7 @@ def _role_payload(db: Session, visit: Visit, viewer: StaffUser) -> dict:
         "ended_at": visit.ended_at.isoformat() if visit.ended_at else None,
         "status": visit.status,
         "record_version": visit.record_version,
+        "custom_data": visit.custom_data,
         "follow_up_weeks": visit.follow_up_weeks,
         "follow_up_due": visit.follow_up_due.isoformat() if visit.follow_up_due else None,
     }

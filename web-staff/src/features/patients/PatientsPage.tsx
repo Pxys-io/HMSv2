@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { get, post } from '../../api/client'
 import { Button, Card, EmptyState, inputClass } from '../../components/ui'
+import { DynamicFields } from '../admin/DynamicFields'
 
 type Patient = {
   id: number
@@ -76,11 +77,16 @@ export default function PatientsPage() {
 function CreatePatientModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [customData, setCustomData] = useState<Record<string, unknown>>({})
   const [error, setError] = useState('')
 
   async function submit() {
     try {
-      await post('/api/patients', { full_name: name, phone }, crypto.randomUUID())
+      await post(
+        '/api/patients',
+        { full_name: name, phone, custom_data: Object.keys(customData).length ? customData : undefined },
+        crypto.randomUUID(),
+      )
       onDone()
       onClose()
     } catch (err) {
@@ -95,6 +101,7 @@ function CreatePatientModal({ onClose, onDone }: { onClose: () => void; onDone: 
         {error && <p className="mb-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         <input className={inputClass} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
         <input className={inputClass + ' mt-2'} placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <DynamicFields entity="patient" value={customData} onChange={setCustomData} />
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             Cancel

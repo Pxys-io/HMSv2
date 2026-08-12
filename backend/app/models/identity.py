@@ -3,6 +3,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     DateTime,
@@ -113,6 +114,7 @@ class PatientProfile(TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     no_show_count: Mapped[int] = mapped_column(Integer, default=0)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    custom_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     record_version: Mapped[int] = mapped_column(Integer, default=1)
     syndicate_id: Mapped[int | None] = mapped_column(ForeignKey("syndicate.id"), nullable=True)
     syndicate_member_no: Mapped[str | None] = mapped_column(String(64), nullable=True)

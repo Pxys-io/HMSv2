@@ -77,6 +77,7 @@ class PublicAppointmentCreate(BaseModel):
 
 class PatientProfileCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=200)
+    custom_data: dict | None = None
     full_name_ar: str | None = None
     gender: str | None = Field(default=None, max_length=20)
     birth_date: date | None = None
@@ -89,6 +90,7 @@ class PatientProfileCreate(BaseModel):
 
 class PatientProfileUpdate(BaseModel):
     full_name: str | None = None
+    custom_data: dict | None = None
     full_name_ar: str | None = None
     gender: str | None = None
     birth_date: date | None = None

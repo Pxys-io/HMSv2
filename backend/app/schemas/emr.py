@@ -17,6 +17,7 @@ class VisitPatch(BaseModel):
 
     visit_type_id: int | None = None
     custom_type_name: str | None = Field(default=None, max_length=200)
+    custom_data: dict | None = None
     chief_complaint: str | None = None
     history: str | None = None
     vitals: dict | None = None

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { get, patch } from '../../api/client'
 import { Button, Card, EmptyState, StatusBadge, inputClass } from '../../components/ui'
+import { DynamicFields } from '../admin/DynamicFields'
 
 type Patient = {
   id: number
@@ -17,6 +18,7 @@ type Patient = {
   address: string | null
   has_allergies: boolean
   has_chronic_conditions: boolean
+  custom_data: Record<string, unknown> | null
   no_show_count: number
   is_archived: boolean
 }
@@ -46,6 +48,7 @@ export default function PatientDetailPage() {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
+  const [editCustom, setEditCustom] = useState<Record<string, unknown>>({})
 
   const patient = useQuery({
     queryKey: ['patient', id],
@@ -81,7 +84,11 @@ export default function PatientDetailPage() {
   const openVisit = timeline.find((v) => v.status === 'open')
 
   async function saveProfile() {
-    await patch(`/api/patients/${id}/demographics`, { full_name: editName, phone: editPhone })
+    await patch(`/api/patients/${id}/demographics`, {
+      full_name: editName,
+      phone: editPhone,
+      custom_data: Object.keys(editCustom).length ? editCustom : undefined,
+    })
     setEditing(false)
     patient.refetch()
   }
@@ -138,11 +145,13 @@ export default function PatientDetailPage() {
               {p.has_chronic_conditions && (
                 <p className="rounded-md bg-amber-50 p-2 text-amber-700">⚠ Chronic conditions on record</p>
               )}
+              <DynamicFields entity="patient" value={editCustom} onChange={setEditCustom} />
               <button
                 onClick={() => {
                   setEditing(true)
                   setEditName(p.full_name)
                   setEditPhone(p.phone)
+                  setEditCustom(p.custom_data ?? {})
                 }}
                 className="mt-2 text-sm text-brand-700 underline"
               >
