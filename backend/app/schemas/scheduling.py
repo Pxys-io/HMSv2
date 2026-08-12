@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class VisitTypeCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     name_ar: str = Field(min_length=2, max_length=120)
+    category: str = Field(default="other", pattern="^(new_visit|follow_up|procedure|other)$")
     duration_minutes: int = Field(default=20, ge=5, le=480)
     default_price: float = Field(ge=0)
     color: str | None = Field(default=None, max_length=7)
@@ -17,6 +18,7 @@ class VisitTypeCreate(BaseModel):
 class VisitTypeUpdate(BaseModel):
     name: str | None = None
     name_ar: str | None = None
+    category: str | None = Field(default=None, pattern="^(new_visit|follow_up|procedure|other)$")
     duration_minutes: int | None = Field(default=None, ge=5, le=480)
     default_price: float | None = Field(default=None, ge=0)
     color: str | None = None

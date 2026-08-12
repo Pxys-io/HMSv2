@@ -35,7 +35,7 @@ def list_visit_types(current: staff, db: DbDep):
     rows = db.scalars(select(VisitType).order_by(VisitType.id)).all()
     return [
         {
-            "id": v.id, "name": v.name, "name_ar": v.name_ar,
+            "id": v.id, "name": v.name, "name_ar": v.name_ar, "category": v.category,
             "duration_minutes": v.duration_minutes,
             "default_price": float(v.default_price), "color": v.color, "is_active": v.is_active,
         }

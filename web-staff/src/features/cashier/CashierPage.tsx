@@ -3,6 +3,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post } from '../../api/client'
 import { Button, Card, EmptyState, StatusBadge, inputClass } from '../../components/ui'
 
+type UninvoicedVisit = {
+  visit_id: number
+  patient_name: string | null
+  patient_phone: string | null
+  doctor_name: string | null
+  type_name: string
+  ended_at: string | null
+  price_preview: number | null
+}
+
 type Invoice = {
   id: number
   number: string
@@ -23,6 +33,18 @@ type Invoice = {
 export default function CashierPage() {
   const [payTarget, setPayTarget] = useState<Invoice | null>(null)
   const queryClient = useQueryClient()
+
+  const uninvoiced = useQuery({
+    queryKey: ['uninvoiced'],
+    queryFn: () => get<UninvoicedVisit[]>('/api/cashier/uninvoiced'),
+    refetchInterval: 10000,
+  })
+
+  async function invoiceVisit(visitId: number) {
+    await post(`/api/invoices/from-visit/${visitId}`, {}, crypto.randomUUID())
+    queryClient.invalidateQueries({ queryKey: ['uninvoiced'] })
+    queryClient.invalidateQueries({ queryKey: ['invoices'] })
+  }
 
   const invoices = useQuery({
     queryKey: ['invoices'],
@@ -50,6 +72,40 @@ export default function CashierPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-ink-900">Cashier — to collect</h1>
+      <Card>
+        <div className="border-b border-border p-3">
+          <h2 className="text-sm font-semibold text-ink-600">
+            Completed visits — invoice them ({uninvoiced.data?.length ?? 0})
+          </h2>
+          <p className="mt-1 text-xs text-ink-400">
+            Invoices are created here by the reception/cashier — visits complete invoice-less.
+          </p>
+        </div>
+        <div className="divide-y divide-border">
+          {(uninvoiced.data ?? []).map((u) => (
+            <div key={u.visit_id} className="flex items-center gap-4 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-ink-900">{u.patient_name}</p>
+                <p className="text-xs text-ink-400">
+                  {u.doctor_name} · {u.type_name} · {u.patient_phone}
+                </p>
+              </div>
+              <span className="font-mono text-sm text-ink-600">
+                {u.price_preview !== null ? `${u.price_preview.toFixed(2)} EGP` : '—'}
+              </span>
+              <Button size="sm" onClick={() => void invoiceVisit(u.visit_id)}>
+                Invoice
+              </Button>
+            </div>
+          ))}
+          {(uninvoiced.data ?? []).length === 0 && (
+            <p className="p-6 text-center text-sm text-ink-400">
+              No completed visits waiting for an invoice
+            </p>
+          )}
+        </div>
+      </Card>
+
       <Card>
         <div className="divide-y divide-border">
           {rows.map((inv) => (

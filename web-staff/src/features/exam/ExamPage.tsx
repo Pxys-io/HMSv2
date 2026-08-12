@@ -2,13 +2,24 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { get, patch, post, put } from '../../api/client'
-import { Button, Card, Field, inputClass } from '../../components/ui'
+import { Button, Card, Field, Modal, inputClass } from '../../components/ui'
 import { CameraCapture } from '../../components/pwa'
+
+type VisitTypeRow = {
+  id: number
+  name: string
+  name_ar: string
+  category: string
+  duration_minutes: number
+  default_price: number
+}
 
 type Visit = {
   id: number
   status: string
   record_version: number
+  visit_type_id: number | null
+  custom_type_name: string | null
   chief_complaint: string | null
   history: string | null
   vitals: Record<string, number | null> | null
@@ -91,6 +102,37 @@ export default function ExamPage() {
   const [ddLabels, setDdLabels] = useState('')
   const [finalLabels, setFinalLabels] = useState('')
   const [mobileTab, setMobileTab] = useState<'history' | 'exam' | 'rx'>('exam')
+  const [typeOpen, setTypeOpen] = useState(false)
+  const [customProcedure, setCustomProcedure] = useState('')
+  const [typeError, setTypeError] = useState('')
+
+  const visitTypes = useQuery({
+    queryKey: ['visit-types'],
+    queryFn: () => get<VisitTypeRow[]>('/api/visit-types'),
+  })
+
+  async function changeType(visitTypeId: number | null, customName: string) {
+    if (!visit.data) return
+    setTypeError('')
+    try {
+      const updated = await patch<Visit>(
+        `/api/visits/${visit.data.id}`,
+        {
+          visit_type_id: visitTypeId,
+          custom_type_name: customName || null,
+          record_version: versionRef.current,
+        },
+        crypto.randomUUID(),
+      )
+      versionRef.current = updated.record_version
+      setVersion(updated.record_version)
+      setTypeOpen(false)
+      visit.refetch()
+    } catch (err) {
+      setTypeError(err instanceof Error ? err.message : 'failed')
+    }
+  }
+
 
   const visit = useQuery({
     queryKey: ['visit', profileId, entryId],
@@ -269,6 +311,9 @@ export default function ExamPage() {
               {v.patient?.code} · {v.patient?.phone}
             </p>
           </div>
+          <Button size="sm" variant="secondary" onClick={() => setTypeOpen(true)}>
+            Type: {v.custom_type_name ?? visitTypes.data?.find((t) => t.id === v.visit_type_id)?.name_ar ?? '—'}
+          </Button>
           <div className="flex items-center gap-2">
             <span
               className={`text-xs ${
@@ -408,7 +453,100 @@ export default function ExamPage() {
         <Attachments visitId={v.id} />
         </div>
       </div>
+      {typeOpen && (
+        <VisitTypePicker
+          types={visitTypes.data ?? []}
+          currentTypeId={v.visit_type_id}
+          currentCustom={v.custom_type_name ?? ''}
+          customName={customProcedure}
+          setCustomName={setCustomProcedure}
+          error={typeError}
+          onSelect={(typeId, customName) => void changeType(typeId, customName)}
+          onClose={() => setTypeOpen(false)}
+        />
+      )}
     </div>
+  )
+}
+
+function VisitTypePicker({
+  types,
+  currentTypeId,
+  currentCustom,
+  customName,
+  setCustomName,
+  error,
+  onSelect,
+  onClose,
+}: {
+  types: VisitTypeRow[]
+  currentTypeId: number | null
+  currentCustom: string
+  customName: string
+  setCustomName: (v: string) => void
+  error: string
+  onSelect: (typeId: number | null, customName: string) => void
+  onClose: () => void
+}) {
+  const groups: { id: string; label: string; ar: string; rows: VisitTypeRow[] }[] = [
+    { id: 'new_visit', label: 'New visit', ar: 'كشف جديد', rows: types.filter((t) => t.category === 'new_visit') },
+    { id: 'follow_up', label: 'Follow-up', ar: 'متابعة', rows: types.filter((t) => t.category === 'follow_up') },
+    { id: 'procedure', label: 'Procedure', ar: 'إجراء', rows: types.filter((t) => t.category === 'procedure') },
+  ]
+  const active = (typeId: number) => typeId === currentTypeId && !currentCustom
+
+  return (
+    <Modal open onClose={onClose} title="Visit type">
+      {error && <p className="mb-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      <div className="space-y-4">
+        {groups.map((group) => (
+          <div key={group.id}>
+            <p className="mb-2 text-xs font-semibold text-ink-600">
+              {group.label} ({group.ar})
+            </p>
+            <div className="space-y-1">
+              {group.rows.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => onSelect(t.id, '')}
+                  className={`w-full rounded-md border px-3 py-2 text-start text-sm ${
+                    active(t.id)
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      : 'border-border hover:border-brand-600'
+                  }`}
+                >
+                  {t.name} ({t.name_ar}) · {t.duration_minutes} min · {t.default_price}
+                </button>
+              ))}
+              {group.rows.length === 0 && (
+                <p className="text-xs text-ink-400">No {group.label.toLowerCase()} type configured</p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <p className="mb-2 text-xs font-semibold text-ink-600">Custom procedure</p>
+          <div className="flex gap-2">
+            <input
+              className={inputClass}
+              placeholder="Type a procedure name…"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+            />
+            <Button
+              onClick={() => customName.trim() && onSelect(currentTypeId, customName.trim())}
+              disabled={!customName.trim()}
+            >
+              Use custom
+            </Button>
+          </div>
+          {currentCustom && (
+            <p className="mt-2 text-xs text-brand-700">Current: {currentCustom}</p>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }
 

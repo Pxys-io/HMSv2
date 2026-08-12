@@ -15,6 +15,8 @@ class VisitPatch(BaseModel):
     """Any subset of clinical fields; null clears a field. `record_version`
     is required so stale autosaves never silently overwrite (E3, D22)."""
 
+    visit_type_id: int | None = None
+    custom_type_name: str | None = Field(default=None, max_length=200)
     chief_complaint: str | None = None
     history: str | None = None
     vitals: dict | None = None

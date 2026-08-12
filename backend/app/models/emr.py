@@ -30,6 +30,7 @@ class Visit(TimestampMixin, Base):
     appointment_id: Mapped[int | None] = mapped_column(ForeignKey("appointment.id"), nullable=True)
     queue_entry_id: Mapped[int | None] = mapped_column(ForeignKey("queue_entry.id"), nullable=True)
     visit_type_id: Mapped[int] = mapped_column(ForeignKey("visit_type.id"))
+    custom_type_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     chief_complaint: Mapped[str | None] = mapped_column(Text, nullable=True)

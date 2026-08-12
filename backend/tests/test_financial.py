@@ -116,36 +116,64 @@ def _complete_visit(client, clinic, token=None):
     return visit_id
 
 
+def _invoice_visit(client, admin, visit_id):
+    """Cashier bills a completed visit (the manual flow)."""
+    resp = client.post(
+        f"/api/invoices/from-visit/{visit_id}",
+        headers={**admin, "Idempotency-Key": f"inv-{secrets.token_hex(4)}"},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
 def _invoice_for_visit(client, admin, visit_id):
     rows = client.get("/api/invoices", headers=admin).json()["items"]
     return next(i for i in rows if i["visit_id"] == visit_id)
 
 
-def test_auto_invoice_m2(client, clinic):
-    admin = admin_headers(client)
+def test_no_auto_invoice_on_complete(client, clinic):
+    """Visits complete without an invoice — the cashier decides (user decision)."""
     visit_id = _complete_visit(client, clinic)
-    invoice = _invoice_for_visit(client, admin, visit_id)
-    assert invoice["number"].startswith(f"INV-{date.today().year}-")
-    assert invoice["total"] == 300.0
-    assert invoice["patient_due"] == 300.0
-    assert invoice["syndicate_due"] == 0
-    assert invoice["status"] == "issued"
-
-    # idempotent: completing again does not duplicate (409 before invoice logic)
+    db = SessionLocal()
+    count = len(db.scalars(select(Invoice).where(Invoice.visit_id == visit_id)).all())
+    db.close()
+    assert count == 0
+    # completing again still 409 (visit lifecycle unchanged)
     resp = client.post(
         f"/api/visits/{visit_id}/complete",
         headers={"Authorization": f"Bearer {clinic['token']}", "Idempotency-Key": "dup-1"},
     )
     assert resp.status_code == 409
-    db = SessionLocal()
-    count = len(db.scalars(select(Invoice).where(Invoice.visit_id == visit_id)).all())
-    db.close()
-    assert count == 1
+
+
+def test_cashier_invoices_completed_visit(client, clinic):
+    admin = admin_headers(client)
+    visit_id = _complete_visit(client, clinic)
+
+    # appears in the uninvoiced list with a price preview
+    uninvoiced = client.get("/api/cashier/uninvoiced", headers=admin).json()
+    row = next(r for r in uninvoiced if r["visit_id"] == visit_id)
+    assert row["price_preview"] == 300.0
+    assert row["type_name"] == "Consultation"
+
+    # cashier creates the invoice
+    invoice = _invoice_visit(client, admin, visit_id)
+    assert invoice["number"].startswith(f"INV-{date.today().year}-")
+    assert invoice["total"] == 300.0
+    assert invoice["patient_due"] == 300.0
+    assert invoice["status"] == "issued"
+
+    # no longer uninvoiced; double-invoice -> 409
+    uninvoiced = client.get("/api/cashier/uninvoiced", headers=admin).json()
+    assert all(r["visit_id"] != visit_id for r in uninvoiced)
+    again = client.post(f"/api/invoices/from-visit/{visit_id}", headers=admin)
+    assert again.status_code == 409
 
 
 def test_discount_caps_and_recompute(client, clinic):
     admin = admin_headers(client)
     visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
     invoice = _invoice_for_visit(client, admin, visit_id)
 
     # secretary login
@@ -185,6 +213,7 @@ def test_discount_caps_and_recompute(client, clinic):
 def test_installments_and_overpay(client, clinic):
     admin = admin_headers(client)
     visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
     invoice = _invoice_for_visit(client, admin, visit_id)
     url = f"/api/invoices/{invoice['id']}/payments"
 
@@ -227,6 +256,7 @@ def test_installments_and_overpay(client, clinic):
 def test_refund_full_marks_refunded(client, clinic):
     admin = admin_headers(client)
     visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
     invoice = _invoice_for_visit(client, admin, visit_id)
     payment = client.post(
         f"/api/invoices/{invoice['id']}/payments",
@@ -257,6 +287,7 @@ def test_refund_full_marks_refunded(client, clinic):
 def test_cancel_reissue_linked_pair(client, clinic):
     admin = admin_headers(client)
     visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
     invoice = _invoice_for_visit(client, admin, visit_id)
     resp = client.post(
         f"/api/invoices/{invoice['id']}/cancel-reissue", headers=admin
@@ -301,6 +332,7 @@ def test_syndicate_price_and_balance(client, clinic):
     db.close()
 
     visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
     invoice = _invoice_for_visit(client, admin, visit_id)
     assert invoice["total"] == 250.0  # coverage + share
     assert invoice["syndicate_due"] == 200.0
@@ -314,6 +346,7 @@ def test_syndicate_price_and_balance(client, clinic):
 def test_reports_and_csv(client, clinic):
     admin = admin_headers(client)
     visit_id = _complete_visit(client, clinic)
+    _invoice_visit(client, admin, visit_id)
     invoice = _invoice_for_visit(client, admin, visit_id)
     client.post(
         f"/api/invoices/{invoice['id']}/payments",

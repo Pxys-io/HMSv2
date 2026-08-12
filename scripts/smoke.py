@@ -106,10 +106,17 @@ def main():
     s, done = req("POST", f"/api/visits/{visit_id}/complete", token=doc, idem="smoke-complete")
     expect(s == 200 and done["status"] == "completed", "visit completion failed")
 
-    s, invoices = req("GET", "/api/invoices?page_size=5", token=admin)
-    inv = next((i for i in invoices["items"] if i["visit_id"] == visit_id), None)
-    expect(inv is not None, "auto-invoice not created on visit completion")
-    expect(float(inv["total"]) == float(vt_id and 300), "invoice total mismatch")
+    # No auto-invoice: the completed visit appears in the cashier list.
+    s, uninvoiced = req("GET", "/api/cashier/uninvoiced", token=admin)
+    expect(s == 200, "uninvoiced list failed")
+    expect(any(r["visit_id"] == visit_id for r in uninvoiced), "completed visit not in cashier list")
+    row = next(r for r in uninvoiced if r["visit_id"] == visit_id)
+    expect(row["price_preview"] == 300, "price preview mismatch")
+
+    # Cashier creates the invoice manually.
+    s, inv = req("POST", f"/api/invoices/from-visit/{visit_id}", token=admin, idem="smoke-inv")
+    expect(s == 200 and inv["number"].startswith("INV-"), "manual invoice failed")
+    expect(float(inv["total"]) == 300, "invoice total mismatch")
 
     s, paid = req("POST", f"/api/invoices/{inv['id']}/payments",
                   {"amount": 300, "method": "fawry"}, token=admin, idem="smoke-pay")

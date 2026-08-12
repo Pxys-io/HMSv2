@@ -24,6 +24,7 @@ from app.models.billing import (
     SyndicatePrice,
 )
 from app.models.identity import Doctor, PatientProfile, StaffUser
+from app.models.scheduling import VisitType
 from app.schemas.financial import (
     DiscountIn,
     InvoiceItemIn,
@@ -64,6 +65,13 @@ def _finish(request: Request, db: Session, actor: StaffUser, body: dict) -> None
     key = get_key_from_request(request)
     if key:
         complete(db, owner_type="staff", owner_id=actor.id, key=key, status=200, body=body)
+
+
+def _doctor_name(db: Session, doctor: Doctor | None) -> str | None:
+    if doctor is None or doctor.staff_user_id is None:
+        return None
+    user = db.get(StaffUser, doctor.staff_user_id)
+    return user.full_name if user else None
 
 
 def _get_invoice(db: Session, invoice_id: int) -> Invoice:
@@ -241,6 +249,83 @@ def put_syndicate_prices(
 
 
 # ------------------------------------------------------------------ invoices
+
+
+@router.get("/cashier/uninvoiced")
+def uninvoiced_visits(current: cashier_or_doctor, db: DbDep):
+    """Completed visits without an invoice — the cashier decides what to bill
+    and creates the invoice manually (no auto-invoicing)."""
+    from app.models.emr import Visit as _Visit
+    from app.models.identity import Doctor as _Doctor
+    from app.models.identity import PatientProfile as _Profile
+    from app.services.pricing import resolve_for_visit
+
+    rows = db.scalars(
+        select(_Visit)
+        .where(
+            _Visit.status == "completed",
+            ~_Visit.id.in_(select(Invoice.visit_id).where(Invoice.visit_id.isnot(None))),
+        )
+        .order_by(_Visit.ended_at.desc())
+        .limit(50)
+    ).all()
+    out = []
+    for visit in rows:
+        profile = db.get(_Profile, visit.patient_profile_id)
+        doctor = db.get(_Doctor, visit.doctor_id)
+        visit_type = db.get(VisitType, visit.visit_type_id)
+        price = None
+        try:
+            price = resolve_for_visit(db, visit, doctor, visit_type).price
+        except Exception:  # noqa: BLE001 - per-hour visits without timings
+            price = None
+        from app.services.visits import visit_type_display_name
+
+        out.append(
+            {
+                "visit_id": visit.id,
+                "patient_profile_id": visit.patient_profile_id,
+                "patient_name": profile.full_name if profile else None,
+                "patient_phone": profile.phone if profile else None,
+                "doctor_id": visit.doctor_id,
+                "doctor_name": _doctor_name(db, doctor),
+                "visit_type_id": visit.visit_type_id,
+                "type_name": visit_type_display_name(db, visit),
+                "custom_type_name": visit.custom_type_name,
+                "ended_at": visit.ended_at.isoformat() if visit.ended_at else None,
+                "price_preview": round(price, 2) if price is not None else None,
+            }
+        )
+    return out
+
+
+@router.post("/invoices/from-visit/{visit_id}")
+def invoice_from_visit(
+    visit_id: int,
+    current: cashier,
+    request: Request,
+    response: Response,
+    db: DbDep,
+    audit_db: AuditDbDep,
+):
+    """Secretary/admin bills a completed visit — the only way invoices are
+    created for visits now."""
+    if _replay(request, response, db, current, {"visit_id": visit_id}):
+        return response
+    from app.models.emr import Visit as _Visit
+    from app.services.billing import create_invoice_from_visit
+
+    visit = db.get(_Visit, visit_id)
+    if visit is None:
+        raise AppError("NOT_FOUND", "visit not found")
+    invoice = create_invoice_from_visit(
+        db, audit_db, visit=visit, actor=current,
+        correlation_id=get_request_id(request),
+        ip=request.client.host if request.client else None,
+    )
+    payload = billing_service.invoice_payload(db, invoice)
+    _finish(request, db, current, payload)
+    return payload
 
 
 @router.get("/invoices")

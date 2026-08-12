@@ -144,6 +144,18 @@ def patch(
     if visit.record_version != expected_version:
         raise AppError("CONFLICT", "record changed; reload and review")
 
+    if "visit_type_id" in fields or "custom_type_name" in fields:
+        if visit.status != "open":
+            raise AppError("CONFLICT", "visit type can only change while the visit is open")
+        if fields.get("custom_type_name") and fields.get("visit_type_id") is None:
+            raise AppError("VALIDATION", "a custom procedure name needs a procedure visit type")
+        if fields.get("visit_type_id") is not None:
+            from app.models.scheduling import VisitType
+
+            visit_type = db.get(VisitType, fields["visit_type_id"])
+            if visit_type is None or not visit_type.is_active:
+                raise AppError("NOT_FOUND", "visit type not found")
+
     before = {"record_version": visit.record_version}
     for field, value in fields.items():
         setattr(visit, field, value)
@@ -254,7 +266,6 @@ def complete(
     ):
         db.commit()
 
-    _billing_hook(db, audit_db, visit, actor)
     return visit
 
 
@@ -291,16 +302,14 @@ def reopen(
     return visit
 
 
-def _billing_hook(db: Session, audit_db: Session, visit: Visit, actor: StaffUser) -> None:
-    """Phase 06: creates the invoice after the visit commits (M2)."""
-    from app.services.billing import auto_invoice
+def visit_type_display_name(db: Session, visit: Visit) -> str:
+    """The invoice/cashier label: a custom procedure name wins over the type."""
+    if visit.custom_type_name:
+        return visit.custom_type_name
+    from app.models.scheduling import VisitType
 
-    if audit_db is None:
-        return
-    auto_invoice(
-        db, audit_db, visit=visit, actor=actor,
-        correlation_id=f"visit-complete-{visit.id}", ip=None,
-    )
+    visit_type = db.get(VisitType, visit.visit_type_id)
+    return visit_type.name if visit_type else "Visit"
 
 
 # ------------------------------------------------------------- prescriptions

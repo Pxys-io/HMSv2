@@ -49,7 +49,7 @@ def next_invoice_number(db: Session) -> str:
     return f"INV-{year}-{next_sequence(db, 'invoice', year):06d}"
 
 
-def auto_invoice(
+def create_invoice_from_visit(
     db: Session,
     audit_db: Session,
     *,
@@ -57,21 +57,24 @@ def auto_invoice(
     actor: StaffUser,
     correlation_id: str,
     ip: str | None,
-) -> Invoice | None:
-    """M2: creates the invoice for a completed visit. Idempotent (unique
-    visit_id). Runs after the visit commit; failures are logged so the
-    secretary can invoice manually — the visit completion never rolls back."""
+) -> Invoice:
+    """Cashier flow (manual trigger): builds the invoice for a completed
+    visit. Idempotent via the unique visit_id — a second call is a 409."""
+    if visit.status != "completed":
+        raise AppError("CONFLICT", "only completed visits can be invoiced")
     existing = db.scalar(select(Invoice).where(Invoice.visit_id == visit.id))
     if existing is not None:
-        return existing
+        raise AppError("CONFLICT", "visit already invoiced")
 
     doctor = db.get(Doctor, visit.doctor_id)
     visit_type = db.get(VisitType, visit.visit_type_id)
     if doctor is None or visit_type is None:
-        logger.error("auto_invoice skipped for visit %s: missing doctor/type", visit.id)
-        return None
+        raise AppError("CONFLICT", "visit has no doctor or visit type")
     resolved = resolve_for_visit(db, visit, doctor, visit_type)
 
+    from app.services.visits import visit_type_display_name
+
+    description = visit_type_display_name(db, visit)
     profile = db.get(PatientProfile, visit.patient_profile_id)
     syndicate_id = profile.syndicate_id if profile else None
 
@@ -99,7 +102,7 @@ def auto_invoice(
     db.add(
         InvoiceItem(
             invoice_id=invoice.id,
-            description=f"{visit_type.name} — {doctor.specialty}",
+            description=description,
             description_ar=visit_type.name_ar,
             qty=1,
             unit_price=subtotal,
@@ -119,10 +122,10 @@ def auto_invoice(
             ip=ip,
         ):
             db.commit()
-    except Exception:  # noqa: BLE001 - invoice must not break the visit flow
-        logger.exception("auto_invoice audit failed for visit %s", visit.id)
+    except Exception:
+        logger.exception("invoice audit failed for visit %s", visit.id)
         db.rollback()
-        return None
+        raise
     return invoice
 
 

@@ -27,6 +27,10 @@ class VisitType(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     name_ar: Mapped[str] = mapped_column(String(120))
+    category: Mapped[str] = mapped_column(
+        Enum("new_visit", "follow_up", "procedure", "other", name="visit_type_category"),
+        default="other",
+    )
     duration_minutes: Mapped[int] = mapped_column(Integer, default=20)
     default_price: Mapped[float] = mapped_column(Numeric(12, 2))
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)

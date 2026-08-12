@@ -56,12 +56,12 @@ SEED_MEDICATIONS = [
 ]
 
 DEMO_VISIT_TYPES = [
-    {"name": "Consultation", "name_ar": "كشف", "duration_minutes": 20, "default_price": 300,
-     "color": "#0D9488"},
-    {"name": "Follow-up", "name_ar": "متابعة", "duration_minutes": 10, "default_price": 150,
-     "color": "#2563EB"},
-    {"name": "Procedure", "name_ar": "إجراء", "duration_minutes": 60, "default_price": 800,
-     "color": "#D97706"},
+    {"name": "Consultation", "name_ar": "كشف", "category": "new_visit",
+     "duration_minutes": 20, "default_price": 300, "color": "#0D9488"},
+    {"name": "Follow-up", "name_ar": "متابعة", "category": "follow_up",
+     "duration_minutes": 10, "default_price": 150, "color": "#2563EB"},
+    {"name": "Procedure", "name_ar": "إجراء", "category": "procedure",
+     "duration_minutes": 60, "default_price": 800, "color": "#D97706"},
 ]
 
 
