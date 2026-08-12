@@ -18,7 +18,7 @@ from app.db.session import SessionLocal
 from app.models.comms import PrintTemplate
 from app.models.config import Setting
 from app.models.emr import Medication
-from app.models.identity import Doctor, NumberSequence, StaffUser
+from app.models.identity import Doctor, NumberSequence, Role, StaffUser
 from app.models.scheduling import DoctorSchedule, VisitType
 from app.services.print_templates import PRINT_TEMPLATES
 from app.services.settings import DEFAULT_SETTINGS
@@ -85,8 +85,14 @@ def seed() -> None:
             ) is None:
                 db.add(NumberSequence(scope=scope, year=year, value=0))
 
-        # --- admin
-        if db.scalar(select(StaffUser).where(StaffUser.role == "admin")) is None:
+        # --- admin (role_id lookup: `role` is a Python property, not a column)
+        admin_role = db.scalar(select(Role).where(Role.name == "admin"))
+        has_admin = db.scalar(
+            select(StaffUser.id).where(
+                StaffUser.role_id == admin_role.id, StaffUser.is_active.is_(True)
+            )
+        )
+        if admin_role is not None and has_admin is None:
             if is_prod:
                 env_password = os.environ.get("INITIAL_ADMIN_PASSWORD")
                 password = env_password or secrets.token_urlsafe(12)
