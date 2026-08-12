@@ -92,6 +92,12 @@ def _process(db: Session, event: OutboxEvent) -> None:
 
         payload = event.payload or {}
         send_confirmation_sync(payload["to"], payload["subject"], payload["html"])
+    elif event.kind == "email_reminder":
+        from app.services.emailer import send_reminder_sync
+
+        payload = event.payload or {}
+        send_reminder_sync(payload["to"], payload["booking_ref"], payload["date"],
+                           payload.get("time"), payload.get("patient_name"))
     else:
         raise ValueError(f"unknown outbox kind {event.kind}")
 

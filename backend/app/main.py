@@ -44,20 +44,23 @@ from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.middleware import RequestIDMiddleware
 from app.services.outbox import outbox_loop
+from app.services.reminder_jobs import reminder_loop
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     stop = asyncio.Event()
     worker = asyncio.create_task(outbox_loop(stop))
+    reminder = asyncio.create_task(reminder_loop(stop))
     try:
         yield
     finally:
         stop.set()
-        try:
-            await asyncio.wait_for(worker, timeout=5)
-        except TimeoutError:
-            worker.cancel()
+        for task in (worker, reminder):
+            try:
+                await asyncio.wait_for(task, timeout=5)
+            except TimeoutError:
+                task.cancel()
 
 
 def create_app() -> FastAPI:

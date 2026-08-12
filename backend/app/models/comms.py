@@ -70,7 +70,7 @@ class OutboxEvent(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     kind: Mapped[str] = mapped_column(
-        Enum("email_booking_confirmation", "attachment_scan", name="outbox_kind")
+        Enum("email_booking_confirmation", "attachment_scan", "email_reminder", name="outbox_kind")
     )
     aggregate_type: Mapped[str] = mapped_column(String(60))
     aggregate_id: Mapped[int] = mapped_column(Integer)

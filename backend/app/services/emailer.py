@@ -68,6 +68,26 @@ async def send_email(to: str, subject: str, html: str) -> None:
     )
 
 
+def render_reminder(
+    patient_name: str, date_text: str, time_text: str, booking_ref: str
+) -> tuple[str, str]:
+    subject = f"Appointment reminder ({booking_ref})"
+    html = (
+        "<p>Hello,</p>"
+        f"<p>This is a reminder that your appointment is scheduled for "
+        f"<b>{date_text}</b> at <b>{time_text}</b>.</p>"
+        "<p>To reschedule or cancel, please contact the clinic.</p>"
+    )
+    return subject, html
+
+
+def send_reminder_sync(
+    to: str, booking_ref: str, date_text: str, time_text: str | None, patient_name: str | None
+) -> None:
+    subject, html = render_reminder(patient_name or "", date_text, time_text or "", booking_ref)
+    send_confirmation_sync(to, subject, html)
+
+
 def send_confirmation_sync(to: str, subject: str, html: str) -> None:
     """Synchronous wrapper for the outbox worker (which is not async)."""
     import asyncio

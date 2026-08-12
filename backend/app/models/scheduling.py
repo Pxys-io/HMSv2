@@ -85,6 +85,10 @@ class Appointment(TimestampMixin, Base):
     cancelled_by: Mapped[str | None] = mapped_column(String(40), nullable=True)
     reminder_link_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True),
         nullable=True)
+    reminder_sms_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True),
+        nullable=True)
+    reminder_email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True),
+        nullable=True)
     booked_by_staff_id: Mapped[int | None] = mapped_column(ForeignKey("staff_user.id"),
         nullable=True)
 

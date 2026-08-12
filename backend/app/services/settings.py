@@ -47,6 +47,9 @@ DEFAULT_SETTINGS = {
     "billing.vat_number": "",
     "billing.vat_exempt": False,
     "booking.horizon_days": 30,
+    "reminder.sms_gateway_url": "",
+    "reminder.sms_token": "",
+    "reminder.sms_sender": "",
     "petty_cash.opening_balance": 0,
     "petty_cash.categories": ["office", "medical", "transport", "staff", "other"],
     "reminder.whatsapp_template_ar": (
