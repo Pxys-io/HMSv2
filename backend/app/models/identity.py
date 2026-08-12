@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.mixins import TimestampMixin
+from app.models.tags import PatientTag
 
 
 class StaffUser(TimestampMixin, Base):
@@ -115,6 +116,9 @@ class PatientProfile(TimestampMixin, Base):
     no_show_count: Mapped[int] = mapped_column(Integer, default=0)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
     custom_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    tags: Mapped[list["PatientTag"]] = relationship(
+        "PatientTag", secondary="patient_tag", back_populates="patients"
+    )
     record_version: Mapped[int] = mapped_column(Integer, default=1)
     syndicate_id: Mapped[int | None] = mapped_column(ForeignKey("syndicate.id"), nullable=True)
     syndicate_member_no: Mapped[str | None] = mapped_column(String(64), nullable=True)

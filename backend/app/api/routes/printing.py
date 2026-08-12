@@ -178,8 +178,9 @@ def patient_search(
     audit_db: AuditDbDep,
     q: str = Query(min_length=2, max_length=100),
     limit: int = Query(default=8, ge=1, le=20),
+    tag_id: int | None = Query(default=None),
 ):
-    results = search_service.search_patients(db, q, limit)
+    results = search_service.search_patients(db, q, limit, tag_id=tag_id)
     audit.access(
         audit_db,
         actor_type="staff", actor_id=current.id, actor_label=current.email,

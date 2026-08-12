@@ -52,6 +52,7 @@ def _payload(profile: PatientProfile) -> dict:
         "is_archived": profile.is_archived,
         "record_version": profile.record_version,
         "custom_data": profile.custom_data,
+        "tags": [{"id": t.id, "name": t.name} for t in profile.tags],
     }
 
 

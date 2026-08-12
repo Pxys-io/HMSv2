@@ -8,22 +8,25 @@ from app.models.billing import Syndicate
 from app.models.identity import PatientProfile
 
 
-def search_patients(db: Session, query: str, limit: int = 8) -> list[dict]:
+def search_patients(
+    db: Session, query: str, limit: int = 8, tag_id: int | None = None
+) -> list[dict]:
     q = query.strip()
     if len(q) < 2:
         return []
     like = f"%{q}%"
-    rows = db.scalars(
-        select(PatientProfile).where(
-            PatientProfile.is_archived.is_(False),
-            or_(
-                PatientProfile.code.ilike(like),
-                PatientProfile.full_name.ilike(like),
-                PatientProfile.full_name_ar.ilike(like),
-                PatientProfile.phone.ilike(like),
-            ),
-        ).order_by(PatientProfile.id)
-    ).all()
+    stmt = select(PatientProfile).where(
+        PatientProfile.is_archived.is_(False),
+        or_(
+            PatientProfile.code.ilike(like),
+            PatientProfile.full_name.ilike(like),
+            PatientProfile.full_name_ar.ilike(like),
+            PatientProfile.phone.ilike(like),
+        ),
+    ).order_by(PatientProfile.id)
+    if tag_id is not None:
+        stmt = stmt.where(PatientProfile.tags.any(id=tag_id))
+    rows = db.scalars(stmt).all()
 
     def rank(profile: PatientProfile) -> int:
         if profile.code.lower().startswith(q.lower()):
@@ -55,6 +58,7 @@ def search_patients(db: Session, query: str, limit: int = 8) -> list[dict]:
                 "gender": profile.gender,
                 "no_show_count": profile.no_show_count,
                 "syndicate_name": syndicate_name,
+                "tags": [{"id": t.id, "name": t.name} for t in profile.tags],
             }
         )
     return out
