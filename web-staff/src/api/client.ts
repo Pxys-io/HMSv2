@@ -1,3 +1,5 @@
+import { toast } from 'sonner'
+
 import { useAuthStore } from '../auth/store'
 
 type ApiError = { code: string; message: string }
@@ -100,7 +102,13 @@ export async function api<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const res = await rawRequest(method, path, body)
+  let res: Response
+  try {
+    res = await rawRequest(method, path, body)
+  } catch {
+    toast.error('Network error — check your connection', { id: `net:${method}:${path}` })
+    throw new ApiClientError('NETWORK', 'Network error — check your connection', 0)
+  }
   if (!res.ok) {
     let code = 'ERROR'
     let message = res.statusText
@@ -110,6 +118,13 @@ export async function api<T = unknown>(
       if (data?.detail?.message) message = data.detail.message
     } catch {
       /* non-JSON error body */
+    }
+    // Surface failures to the user instead of failing silently: mutations
+    // always toast; GETs toast on 5xx/network (404s on reads are normal,
+    // e.g. "payroll not generated yet"). Toasts are deduped per endpoint so
+    // background polls can't spam.
+    if (method !== 'GET' || res.status >= 500) {
+      toast.error(message || res.statusText, { id: `${method}:${path}:${code}` })
     }
     throw new ApiClientError(code, message, res.status)
   }

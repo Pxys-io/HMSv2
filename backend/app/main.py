@@ -1,9 +1,12 @@
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from alembic import command
+from alembic.config import Config
 from app.api.public import auth as public_auth
 from app.api.public import booking as public_booking
 from app.api.public import profiles as public_profiles
@@ -51,8 +54,18 @@ from app.services.outbox import outbox_loop
 from app.services.reminder_jobs import reminder_loop
 
 
+def _migrate_to_head() -> None:
+    """Applies pending Alembic migrations on boot so a stale DB never 500s
+    with missing tables (Plan/14 live-deploy hardening)."""
+    backend = Path(__file__).resolve().parent.parent
+    for ini in ("alembic.ini", "alembic_audit.ini"):
+        cfg = Config(str(backend / ini))
+        command.upgrade(cfg, "head")
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    _migrate_to_head()
     stop = asyncio.Event()
     worker = asyncio.create_task(outbox_loop(stop))
     reminder = asyncio.create_task(reminder_loop(stop))

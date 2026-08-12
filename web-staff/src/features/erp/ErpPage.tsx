@@ -99,6 +99,7 @@ function TasksTab() {
   return (
     <Card className="space-y-3 p-4">
       <h2 className="text-sm font-semibold text-ink-600">Tasks</h2>
+      <ErrorBanner error={tasks.error} />
       <div className="flex gap-2">
         <input id="task-title" placeholder="New task title" className={inputClass} />
         <input id="task-due" type="date" className={inputClass + ' w-40'} />
@@ -171,6 +172,7 @@ function ReferralsTab() {
   return (
     <Card className="space-y-3 p-4">
       <h2 className="text-sm font-semibold text-ink-600">Referrals</h2>
+      <ErrorBanner error={referrals.error} />
       {referrals.data && referrals.data.items.length === 0 ? (
         <EmptyState message="No referrals" />
       ) : (
@@ -226,6 +228,7 @@ function LabOrdersTab() {
   return (
     <Card className="space-y-3 p-4">
       <h2 className="text-sm font-semibold text-ink-600">Lab orders</h2>
+      <ErrorBanner error={orders.error} />
       {orders.data && orders.data.items.length === 0 ? (
         <EmptyState message="No lab orders" />
       ) : (
@@ -281,6 +284,7 @@ function DuplicatesTab() {
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink-600">Duplicate patients</h2>
+      <ErrorBanner error={groups.error} />
         <Button
           variant="secondary"
           onClick={async () => {
@@ -345,6 +349,7 @@ function InventoryTab() {
     <Card className="space-y-3 p-4">
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold text-ink-600">Products</h2>
+      <ErrorBanner error={products.error} />
         <input id="inv-name" placeholder="Name" className={inputClass + ' w-44'} />
         <input id="inv-stock" type="number" min={0} placeholder="Opening" className={inputClass + ' w-28'} />
         <input id="inv-price" type="number" min={0} placeholder="Price" className={inputClass + ' w-24'} />
@@ -552,6 +557,17 @@ function HrTab() {
           </table>
         )}
       </Card>
+    </div>
+  )
+}
+
+function ErrorBanner({ error }: { error: unknown }) {
+  if (!error) return null
+  const message =
+    error instanceof Error ? error.message : 'Something went wrong'
+  return (
+    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+      Failed to load: {message}
     </div>
   )
 }
