@@ -1,10 +1,10 @@
 """Staff patient-profile routes: create, view, per-patient appointments
 (Plan/03 §3.1, Plan/05 demographics)."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.audit import service as audit
@@ -15,8 +15,15 @@ from app.models.identity import PatientProfile, StaffUser
 from app.models.scheduling import Appointment
 from app.schemas.scheduling import PatientProfileCreate, PatientProfileUpdate
 from app.services.activity import list_activity, log_activity
+from app.services.communications import list_communications, log_communication
 from app.services.custom_fields import validate_and_coerce as _validate_custom
 from app.services.sequences import next_patient_code
+
+
+class CommunicationCreate(BaseModel):
+    channel: Literal["call", "email", "whatsapp", "sms", "in_person"] = "call"
+    summary: str = Field(min_length=1, max_length=2000)
+
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 staff = Annotated[StaffUser, Depends(require_perm("patient.view"))]
@@ -83,6 +90,43 @@ def get_patient(profile_id: int, current: staff, db: DbDep):
     if profile is None:
         raise AppError("NOT_FOUND", "patient profile not found")
     return _payload(profile)
+
+
+@router.get("/{profile_id}/communications")
+def get_communications(
+    profile_id: int,
+    current: staff,
+    db: DbDep,
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    profile = db.get(PatientProfile, profile_id)
+    if profile is None:
+        raise AppError("NOT_FOUND", "patient profile not found")
+    return {"items": list_communications(db, profile_id, limit)}
+
+
+@router.post("/{profile_id}/communications")
+def create_communication(
+    profile_id: int,
+    body: CommunicationCreate,
+    current: staff,
+    db: DbDep,
+):
+    profile = db.get(PatientProfile, profile_id)
+    if profile is None:
+        raise AppError("NOT_FOUND", "patient profile not found")
+    entry = log_communication(
+        db,
+        patient_profile_id=profile_id,
+        channel=body.channel,
+        summary=body.summary,
+        staff_id=current.id,
+    )
+    return {
+        "id": entry.id, "channel": entry.channel, "summary": entry.summary,
+        "staff_id": entry.staff_id,
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+    }
 
 
 @router.get("/{profile_id}/activity")

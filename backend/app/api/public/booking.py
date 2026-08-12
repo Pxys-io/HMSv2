@@ -167,7 +167,14 @@ def _after_public_booking(db: Session, appt: Appointment, account: PatientAccoun
                 dedupe_key=f"email:{appt.booking_ref}",
             )
         )
-        db.commit()
+        from app.services.communications import log_communication
+
+        log_communication(
+            db,
+            patient_profile_id=appt.patient_profile_id,
+            channel="email",
+            summary=f"Booking confirmation {appt.booking_ref} sent to {account.email}",
+        )
 
 
 def _own_profile(db: Session, account: PatientAccount, profile_id: int) -> PatientProfile:

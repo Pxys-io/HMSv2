@@ -9,6 +9,7 @@ from app.models.billing import (
     SyndicatePrice,
 )
 from app.models.comms import ChatConversation, ChatMessage, Notification, OutboxEvent, PrintTemplate
+from app.models.comms_log import CommunicationLogEntry
 from app.models.config import IdempotencyKey, PublicAsset, Setting
 from app.models.emr import (
     Attachment,
@@ -35,6 +36,7 @@ __all__ = [
     "Expense",
     "Appointment",
     "Attachment",
+    "CommunicationLogEntry",
     "ChatConversation",
     "ChatMessage",
     "Discount",

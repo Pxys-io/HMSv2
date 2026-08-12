@@ -119,7 +119,16 @@ def appointment_reminder_link(
         raise AppError("NOT_FOUND", "appointment not found")
     result = reminders_service.reminder_link(db, appointment, locale)
     if result["url"] is not None:
+        from app.services.communications import log_communication
+
         appointment.reminder_link_generated_at = datetime.now(UTC)
+        log_communication(
+            db,
+            patient_profile_id=appointment.patient_profile_id,
+            channel="whatsapp",
+            summary=f"Reminder link generated for {appointment.date.isoformat()}",
+            staff_id=current.id,
+        )
         db.commit()
     audit.access(
         audit_db,
