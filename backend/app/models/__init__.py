@@ -1,3 +1,4 @@
+from app.models.activity import ActivityEvent
 from app.models.billing import (
     Discount,
     Invoice,
@@ -17,6 +18,7 @@ from app.models.emr import (
     Visit,
     VisitDiagnosis,
 )
+from app.models.expense import Expense, PettyCashTransaction
 from app.models.identity import (
     Doctor,
     NumberSequence,
@@ -29,6 +31,8 @@ from app.models.queueing import QueueEntry
 from app.models.scheduling import Appointment, DoctorSchedule, ScheduleBlock, VisitType
 
 __all__ = [
+    "ActivityEvent",
+    "Expense",
     "Appointment",
     "Attachment",
     "ChatConversation",
@@ -61,4 +65,5 @@ __all__ = [
     "Visit",
     "VisitDiagnosis",
     "VisitType",
+    "PettyCashTransaction",
 ]
