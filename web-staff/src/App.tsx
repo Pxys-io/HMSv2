@@ -22,6 +22,13 @@ import RecallsPage from './features/recalls/RecallsPage'
 import ReportsPage from './features/reports/ReportsPage'
 import TodayPage from './features/today/TodayPage'
 
+function HomeRedirect() {
+  const role = useAuthStore((s) => s.user?.role)
+  const to =
+    role === 'doctor' ? '/today' : role === 'admin' ? '/reports/daily' : '/board'
+  return <Navigate to={to} replace />
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
@@ -103,7 +110,7 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/board" replace />} />
+          <Route index element={<HomeRedirect />} />
           <Route
             path="board"
             element={

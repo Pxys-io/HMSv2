@@ -15,17 +15,18 @@ export type NotificationItem = {
   created_at: string | null
 }
 
-const NAV: { to: string; label: string; roles: string[]; icon: string }[] = [
-  { to: '/board', label: 'Waiting room', roles: ['admin', 'secretary'], icon: '▦' },
-  { to: '/calendar', label: 'Calendar', roles: ['admin', 'secretary'], icon: '📅' },
-  { to: '/today', label: 'Today', roles: ['doctor'], icon: '🩺' },
-  { to: '/patients', label: 'Patients', roles: ['admin', 'secretary', 'doctor'], icon: '👤' },
-  { to: '/cashier', label: 'Cashier', roles: ['admin', 'secretary'], icon: '💵' },
-  { to: '/recalls', label: 'Recalls', roles: ['admin', 'secretary', 'doctor'], icon: '⏰' },
-  { to: '/chat', label: 'Support chat', roles: ['admin', 'secretary'], icon: '💬' },
-  { to: '/reports/daily', label: 'Reports', roles: ['admin'], icon: '📊' },
-  { to: '/audit', label: 'Audit log', roles: ['admin'], icon: '🔒' },
-  { to: '/admin', label: 'Admin', roles: ['admin'], icon: '⚙️' },
+const NAV: { to: string; key: string; roles: string[]; icon: string }[] = [
+  { to: '/board', key: 'board', roles: ['admin', 'secretary'], icon: '▦' },
+  { to: '/calendar', key: 'calendar', roles: ['admin', 'secretary'], icon: '📅' },
+  { to: '/today', key: 'today', roles: ['doctor'], icon: '🩺' },
+  { to: '/schedule', key: 'schedule', roles: ['doctor'], icon: '📆' },
+  { to: '/patients', key: 'patients', roles: ['admin', 'secretary', 'doctor'], icon: '👤' },
+  { to: '/cashier', key: 'cashier', roles: ['admin', 'secretary'], icon: '💵' },
+  { to: '/recalls', key: 'recalls', roles: ['admin', 'secretary', 'doctor'], icon: '⏰' },
+  { to: '/chat', key: 'chat', roles: ['admin', 'secretary'], icon: '💬' },
+  { to: '/reports/daily', key: 'reports', roles: ['admin'], icon: '📊' },
+  { to: '/audit', key: 'audit', roles: ['admin'], icon: '🔒' },
+  { to: '/admin', key: 'admin', roles: ['admin'], icon: '⚙️' },
 ]
 
 function useNotifications() {
@@ -85,7 +86,7 @@ export default function AppLayout() {
               }
             >
               <span className="w-5 text-center">{item.icon}</span>
-              {!collapsed && t(`nav.${item.label === 'Waiting room' ? 'board' : item.label.toLowerCase()}`)}
+              {!collapsed && t(`nav.${item.key}`)}
             </NavLink>
           ))}
         </nav>
@@ -115,7 +116,7 @@ export default function AppLayout() {
           >
             {collapsed ? '▸' : '◂'}
           </button>
-          <div className="flex-1 text-sm text-ink-400">Quick search… ⌘K</div>
+          <div className="flex-1 text-sm text-ink-400">{t('common.quickSearch')}</div>
           <button
             onClick={() => navigate('/chat')}
             className="relative rounded-md p-1.5 text-ink-600 hover:bg-slate-100"

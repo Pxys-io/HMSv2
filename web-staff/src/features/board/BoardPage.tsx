@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { get, idemKey, post } from '../../api/client'
 import { Button, Card, EmptyState, StatusBadge, inputClass } from '../../components/ui'
 
@@ -32,6 +33,7 @@ function waitMinutes(since: string | null): number {
 }
 
 export default function BoardPage() {
+  const { t } = useTranslation()
   const [doctorId, setDoctorId] = useState<number | null>(null)
   const [walkInOpen, setWalkInOpen] = useState(false)
   const queryClient = useQueryClient()
@@ -68,7 +70,7 @@ export default function BoardPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-bold text-ink-900">Waiting room</h1>
+        <h1 className="text-lg font-bold text-ink-900">{t('common.waitingRoom')}</h1>
         <select
           className={inputClass + ' w-56'}
           value={doctorId ?? ''}
@@ -81,7 +83,7 @@ export default function BoardPage() {
           ))}
         </select>
         <div className="flex-1" />
-        <Button onClick={() => setWalkInOpen(true)}>+ Walk-in</Button>
+        <Button onClick={() => setWalkInOpen(true)}>{t('common.walkIn')}</Button>
         <Button
           variant="secondary"
           onClick={async () => {
