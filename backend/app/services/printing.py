@@ -96,11 +96,12 @@ def _rx_items_table(db: Session, visit_id: int) -> str:
         rows.append(
             f"<tr><td>{i}</td><td>{html.escape(name)}</td><td>{html.escape(item.dose)}</td>"
             f"<td>{html.escape(item.frequency)}</td><td>{html.escape(item.duration)}</td>"
+            f"<td>{html.escape(item.route or '')}</td>"
             f"<td>{html.escape(item.instructions or '')}</td></tr>"
         )
     return (
         "<table><thead><tr><th>#</th><th>Drug</th><th>Dose</th><th>Frequency</th>"
-        "<th>Duration</th><th>Instructions</th></tr></thead><tbody>"
+        "<th>Duration</th><th>Route</th><th>Instructions</th></tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
     )

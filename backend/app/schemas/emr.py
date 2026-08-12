@@ -72,6 +72,7 @@ class PrescriptionItemIn(BaseModel):
     dose: str = Field(min_length=1, max_length=120)
     frequency: str = Field(min_length=1, max_length=120)
     duration: str = Field(min_length=1, max_length=60)
+    route: str | None = Field(default=None, max_length=40)
     instructions: str | None = Field(default=None, max_length=300)
     quantity: str | None = Field(default=None, max_length=60)
 

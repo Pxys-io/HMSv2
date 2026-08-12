@@ -298,6 +298,7 @@ def test_prescription_replace_atomic(client, doctor_client):
                     "dose": "1 tab",
                     "frequency": "3x/day",
                     "duration": "5 days",
+                    "route": "oral",
                 }
             ],
             "record_version": 1,
@@ -307,6 +308,7 @@ def test_prescription_replace_atomic(client, doctor_client):
     assert resp.status_code == 200
     rx = resp.json()["prescription"]
     assert len(rx["items"]) == 1
+    assert rx["items"][0]["route"] == "oral"
 
     # replace with two items + free text, version bumped
     resp2 = client.put(
@@ -323,6 +325,23 @@ def test_prescription_replace_atomic(client, doctor_client):
     )
     assert resp2.status_code == 200
     assert len(resp2.json()["prescription"]["items"]) == 2
+    assert resp2.json()["prescription"]["items"][0]["route"] is None
+
+    # route round-trips on the printed items table
+    rx3 = client.put(
+        f"/api/visits/{visit_id}/prescription",
+        json={
+            "notes": None,
+            "items": [
+                {"medication_id": med_id, "dose": "1", "frequency": "2x", "duration": "3",
+                 "route": "oral"},
+            ],
+            "record_version": 3,
+        },
+        headers=headers,
+    )
+    assert rx3.status_code == 200
+    assert rx3.json()["prescription"]["items"][0]["route"] == "oral"
 
 
 def test_attachment_upload_quarantine_and_serve(client, doctor_client, tmp_path):
@@ -366,6 +385,28 @@ def test_attachment_upload_quarantine_and_serve(client, doctor_client, tmp_path)
     thumb = client.get(f"/api/files/{body['id']}?thumb=true", headers=headers)
     assert thumb.status_code == 200
     assert Image.open(io.BytesIO(thumb.content)).size[0] <= 320
+
+
+def test_attachment_rgba_png_uploads(client, doctor_client):
+    """RGBA PNGs (phone screenshots) must not 500 during JPEG re-encode."""
+    headers = _auth(doctor_client)
+    _check_in_and_start(client, doctor_client)
+    visit_id = client.get(
+        f"/api/patients/{doctor_client['profile_id']}/timeline", headers=headers
+    ).json()[0]["id"]
+
+    buf = io.BytesIO()
+    Image.new("RGBA", (300, 200), color=(255, 0, 0, 128)).save(buf, format="PNG")
+    rgba_png = buf.getvalue()
+
+    resp = client.post(
+        f"/api/visits/{visit_id}/attachments",
+        files={"file": ("shot.png", rgba_png, "image/png")},
+        data={"kind": "photo"},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["mime"] == "image/jpeg"
 
 
 def test_attachment_rejects_bad_types_and_duplicates(client, doctor_client):

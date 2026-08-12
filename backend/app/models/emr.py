@@ -106,6 +106,7 @@ class PrescriptionItem(TimestampMixin, Base):
     dose: Mapped[str] = mapped_column(String(120))
     frequency: Mapped[str] = mapped_column(String(120))
     duration: Mapped[str] = mapped_column(String(60))
+    route: Mapped[str | None] = mapped_column(String(40), nullable=True)
     instructions: Mapped[str | None] = mapped_column(String(300), nullable=True)
     quantity: Mapped[str | None] = mapped_column(String(60), nullable=True)
     order: Mapped[int] = mapped_column(SmallInteger, default=0)

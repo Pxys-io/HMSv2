@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { get, patch, post, put } from '../../api/client'
+import { get, patch, post, put, uploadFile } from '../../api/client'
+import { toast } from 'sonner'
 import { Button, Card, Field, Modal, inputClass } from '../../components/ui'
 import { CameraCapture } from '../../components/pwa'
 
@@ -43,6 +44,7 @@ type PrescriptionItem = {
   dose: string
   frequency: string
   duration: string
+  route: string | null
 }
 
 type TimelineCard = {
@@ -394,8 +396,12 @@ export default function ExamPage() {
         <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold text-ink-600">Diagnoses</h3>
           <Icd10Picker
-            onPick={(label) => {
-              setFinalLabels((prev) => (prev ? prev + '\n' : '') + label)
+            onPick={(label, kind) => {
+              if (kind === 'dd') {
+                setDdLabels((prev) => (prev ? prev + '\n' : '') + label)
+              } else {
+                setFinalLabels((prev) => (prev ? prev + '\n' : '') + label)
+              }
             }}
           />
           <div className="mt-2 grid grid-cols-2 gap-3">
@@ -457,6 +463,22 @@ export default function ExamPage() {
                   setRxDraft({ ...rxDraft, items })
                 }}
               />
+              <select
+                className={inputClass}
+                value={item.route ?? ''}
+                onChange={(e) => {
+                  const items = [...rxDraft.items]
+                  items[i] = { ...item, route: e.target.value }
+                  setRxDraft({ ...rxDraft, items })
+                }}
+              >
+                <option value="">Route…</option>
+                {ROUTES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
           ))}
           <Button
@@ -464,15 +486,27 @@ export default function ExamPage() {
             onClick={() =>
               setRxDraft({
                 ...rxDraft,
-                items: [...rxDraft.items, { medication_id: null, free_text: '', dose: '', frequency: '', duration: '' }],
+                items: [...rxDraft.items, { medication_id: null, free_text: '', dose: '', frequency: '', duration: '', route: '' }],
               })
             }
           >
             + Item
           </Button>
-          <Button className="ms-2" onClick={saveRx}>
-            Save prescription
-          </Button>
+          <textarea
+            className={inputClass + ' mt-2'}
+            rows={2}
+            placeholder="Prescription notes (optional)"
+            value={rxDraft.notes ?? ''}
+            onChange={(e) => setRxDraft({ ...rxDraft, notes: e.target.value })}
+          />
+          <div className="mt-2 flex gap-2">
+            <Button className="ms-0" onClick={saveRx}>
+              Save prescription
+            </Button>
+            <Button variant="secondary" onClick={() => void printRx(visit.data.id)}>
+              Print
+            </Button>
+          </div>
         </Card>
 
         <Attachments visitId={v.id} />
@@ -611,12 +645,17 @@ function Attachments({ visitId }: { visitId: number }) {
   async function upload(override?: File) {
     const target = override ?? file
     if (!target) return
-    const form = new FormData()
-    form.append('file', target)
-    form.append('kind', kind)
-    await fetch(`/api/visits/${visitId}/attachments`, { method: 'POST', body: form })
-    visit.refetch()
-    setFile(null)
+    try {
+      const form = new FormData()
+      form.append('file', target)
+      form.append('kind', kind)
+      await uploadFile(`/api/visits/${visitId}/attachments`, form)
+      toast.success('File uploaded')
+      visit.refetch()
+      setFile(null)
+    } catch {
+      /* toast already shown by uploadFile */
+    }
   }
 
   return (
@@ -650,9 +689,14 @@ function Attachments({ visitId }: { visitId: number }) {
   )
 }
 
-function Icd10Picker({ onPick }: { onPick: (label: string) => void }) {
+function Icd10Picker({
+  onPick,
+}: {
+  onPick: (label: string, kind: 'dd' | 'final') => void
+}) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState<{ code: string; label: string } | null>(null)
   const { data } = useQuery({
     queryKey: ['icd10', q],
     queryFn: () => get<{ items: { code: string; label_en: string; label_ar: string | null }[] }>(`/api/icd10?q=${encodeURIComponent(q)}`),
@@ -671,6 +715,31 @@ function Icd10Picker({ onPick }: { onPick: (label: string) => void }) {
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
+      {pending && (
+        <div className="absolute z-30 mt-1 flex gap-2 rounded-lg border border-border bg-surface p-2 shadow-lg">
+          <span className="py-1 text-xs text-ink-500">{pending.label}</span>
+          <button
+            type="button"
+            className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
+            onClick={() => {
+              onPick(pending.label, 'dd')
+              setPending(null)
+            }}
+          >
+            + Differential (DD)
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700"
+            onClick={() => {
+              onPick(pending.label, 'final')
+              setPending(null)
+            }}
+          >
+            + Final
+          </button>
+        </div>
+      )}
       {open && data && data.items.length > 0 && (
         <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border bg-surface shadow-lg">
           {data.items.map((item) => (
@@ -679,7 +748,7 @@ function Icd10Picker({ onPick }: { onPick: (label: string) => void }) {
               type="button"
               className="block w-full px-3 py-2 text-left text-sm hover:bg-brand-50"
               onClick={() => {
-                onPick(`${item.label_en} (${item.code})`)
+                setPending({ code: item.code, label: `${item.label_en} (${item.code})` })
                 setQ('')
                 setOpen(false)
               }}
@@ -744,4 +813,19 @@ function VitalInput({
       {flag === 'low' && <span className="text-amber-600">low</span>}
     </label>
   )
+}
+
+const ROUTES = ['oral', 'topical', 'sublingual', 'inhalation', 'IV', 'IM', 'SC',
+  'eye', 'ear', 'nasal', 'rectal', 'vaginal']
+
+async function printRx(visitId: number) {
+  try {
+    const { token } = await post<{ token: string }>(
+      `/api/print/token?key=rx&entity_id=${visitId}`,
+      {},
+    )
+    window.open(`/api/print/rx/${visitId}?token=${encodeURIComponent(token)}&locale=ar`, '_blank')
+  } catch {
+    /* toast already shown by the api client */
+  }
 }

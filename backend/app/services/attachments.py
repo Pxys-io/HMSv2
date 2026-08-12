@@ -56,7 +56,13 @@ def _normalize_image(data: bytes) -> tuple[bytes, bytes | None]:
         img.load()
     except (UnidentifiedImageError, OSError) as exc:
         raise AppError("VALIDATION", "unreadable image") from exc
-    if img.mode not in ("RGB", "RGBA"):
+    if img.mode == "RGBA":
+        # Flatten alpha onto white so RGBA PNGs (common from phones) can be
+        # saved as JPEG instead of 500ing ("cannot write mode RGBA as JPEG").
+        flattened = Image.new("RGB", img.size, (255, 255, 255))
+        flattened.paste(img, mask=img.split()[-1])
+        img = flattened
+    elif img.mode != "RGB":
         img = img.convert("RGB")
     img.thumbnail((MAX_EDGE, MAX_EDGE))
     out = io.BytesIO()

@@ -346,6 +346,7 @@ def get_prescription(db: Session, visit_id: int) -> dict | None:
                 "dose": i.dose,
                 "frequency": i.frequency,
                 "duration": i.duration,
+                "route": i.route,
                 "instructions": i.instructions,
                 "quantity": i.quantity,
             }
@@ -392,6 +393,7 @@ def put_prescription(
                 dose=item["dose"],
                 frequency=item["frequency"],
                 duration=item["duration"],
+                route=item.get("route"),
                 instructions=item.get("instructions"),
                 quantity=item.get("quantity"),
                 order=idx,

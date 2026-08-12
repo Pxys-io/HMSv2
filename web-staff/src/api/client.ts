@@ -133,6 +133,38 @@ export async function api<T = unknown>(
 }
 
 export const get = <T = unknown>(path: string) => api<T>('GET', path)
+
+export async function uploadFile<T = unknown>(
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  // Multipart uploads bypass the JSON api(); they still need the bearer +
+  // CSRF headers (attachments 401'd silently before this existed).
+  const token = useAuthStore.getState().accessToken
+  const csrf = await getCsrf()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (csrf) headers['X-CSRF-Token'] = csrf
+  let res: Response
+  try {
+    res = await fetch(path, { method: 'POST', credentials: 'include', headers, body: formData })
+  } catch {
+    toast.error('Upload failed — check your connection', { id: `up:${path}` })
+    throw new ApiClientError('NETWORK', 'Upload failed — check your connection', 0)
+  }
+  if (!res.ok) {
+    let message = res.statusText
+    try {
+      const data = await res.json()
+      if (data?.detail?.message) message = data.detail.message
+    } catch {
+      /* non-JSON error body */
+    }
+    toast.error(message || 'Upload failed', { id: `up:${path}` })
+    throw new ApiClientError('ERROR', message, res.status)
+  }
+  return (await res.json()) as T
+}
 export const del = <T = unknown>(path: string) => api<T>('DELETE', path)
 
 export function idemKey(): string {
