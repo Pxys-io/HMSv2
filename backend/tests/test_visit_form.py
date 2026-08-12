@@ -1,9 +1,8 @@
 """Visit form customizability tests (high-grade form config)."""
 
 import secrets
-from datetime import date
 
-from tests.test_financial import _complete_visit, admin_headers
+from tests.test_financial import admin_headers
 
 
 def test_visit_form_defaults_and_round_trip(client):
