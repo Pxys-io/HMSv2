@@ -134,6 +134,17 @@ export async function api<T = unknown>(
 
 export const get = <T = unknown>(path: string) => api<T>('GET', path)
 
+export async function fetchBlob(path: string): Promise<Blob> {
+  // <img> tags cannot send the bearer token; load blobs through the client
+  // and render object URLs instead (thumbnails previously 401'd).
+  const token = useAuthStore.getState().accessToken
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(path, { credentials: 'include', headers })
+  if (!res.ok) throw new ApiClientError('ERROR', 'failed to load file', res.status)
+  return res.blob()
+}
+
 export async function uploadFile<T = unknown>(
   path: string,
   formData: FormData,

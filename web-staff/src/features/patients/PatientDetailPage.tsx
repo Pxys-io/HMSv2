@@ -72,7 +72,15 @@ export default function PatientDetailPage() {
   const visit = useQuery({
     queryKey: ['patient-timeline', id],
     queryFn: () =>
-      get<{ id: number; status: string; attachments_count: number }[]>(`/api/patients/${id}/timeline`),
+      get<
+        {
+          id: number
+          status: string
+          date: string
+          doctor_name: string | null
+          attachments_count: number
+        }[]
+      >(`/api/patients/${id}/timeline`),
     enabled: Number.isFinite(id),
   })
 
@@ -222,6 +230,38 @@ export default function PatientDetailPage() {
           </p>
         </Card>
       </div>
+
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink-600">Visit history</h2>
+          <Link to={`/patients/${id}/exam`}>
+            <Button size="sm" variant="secondary">
+              New visit
+            </Button>
+          </Link>
+        </div>
+        <div className="mt-3 space-y-2">
+          {timeline.length === 0 && <p className="text-sm text-ink-400">No visits yet</p>}
+          {timeline.map((v) => (
+            <Link
+              key={v.id}
+              to={`/patients/${id}/exam?visit_id=${v.id}`}
+              className="flex items-center justify-between rounded-lg border border-border p-2 text-sm hover:bg-slate-50"
+            >
+              <span className="font-medium text-ink-900">
+                {v.date}
+                {v.doctor_name ? ` · ${v.doctor_name}` : ''}
+              </span>
+              <span className="flex items-center gap-2">
+                <StatusBadge status={v.status} />
+                <span className="text-xs text-ink-400">
+                  {v.attachments_count ?? 0} file(s) · open →
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">

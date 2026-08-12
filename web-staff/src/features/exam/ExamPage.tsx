@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { get, patch, post, put, uploadFile } from '../../api/client'
+import { fetchBlob, get, patch, post, put, uploadFile } from '../../api/client'
 import { toast } from 'sonner'
 import { Button, Card, Field, Modal, inputClass } from '../../components/ui'
 import { CameraCapture } from '../../components/pwa'
@@ -91,6 +91,7 @@ export default function ExamPage() {
   const { profileId } = useParams()
   const [params] = useSearchParams()
   const entryId = params.get('entry')
+  const viewVisitId = params.get('visit_id')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const versionRef = useRef(0)
@@ -141,8 +142,12 @@ export default function ExamPage() {
 
 
   const visit = useQuery({
-    queryKey: ['visit', profileId, entryId],
+    queryKey: ['visit', profileId, entryId, viewVisitId],
     queryFn: async () => {
+      if (viewVisitId) {
+        // Browsing an old (usually completed) visit from the timeline.
+        return get<Visit>(`/api/visits/${Number(viewVisitId)}`)
+      }
       if (entryId) {
         // From the queue: the visit already exists or is created here
         // (service re-enters idempotently).
@@ -171,6 +176,7 @@ export default function ExamPage() {
     },
     enabled: Boolean(profileId),
   })
+  const readOnly = visit.data?.status === 'completed' || Boolean(viewVisitId)
 
   useEffect(() => {
     if (visit.data) {
@@ -214,7 +220,7 @@ export default function ExamPage() {
   // autosave debounce: only fires when the draft differs from the last
   // saved snapshot, so it never loops and never races into 409s.
   useEffect(() => {
-    if (!visit.data || saveState === 'saving') return
+    if (!visit.data || readOnly || saveState === 'saving') return
     const timer = setTimeout(async () => {
       const fields = buildFields(draft)
       const snapshot = JSON.stringify(fields)
@@ -236,7 +242,7 @@ export default function ExamPage() {
     }, 800)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, visit.data?.id])
+  }, [draft, visit.data?.id, readOnly])
 
   async function complete() {
     if (!visit.data) return
@@ -338,9 +344,16 @@ export default function ExamPage() {
                     ? 'Saved'
                     : ''}
             </span>
-            <Button onClick={complete} variant="secondary">
-              Complete visit
-            </Button>
+            {!readOnly && (
+              <Button onClick={complete} variant="secondary">
+                Complete visit
+              </Button>
+            )}
+            {readOnly && (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-ink-500">
+                Read-only — old visit
+              </span>
+            )}
           </div>
         </div>
 
@@ -395,26 +408,30 @@ export default function ExamPage() {
 
         <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold text-ink-600">Diagnoses</h3>
-          <Icd10Picker
-            onPick={(label, kind) => {
-              if (kind === 'dd') {
-                setDdLabels((prev) => (prev ? prev + '\n' : '') + label)
-              } else {
-                setFinalLabels((prev) => (prev ? prev + '\n' : '') + label)
-              }
-            }}
-          />
+          {!readOnly && (
+            <Icd10Picker
+              onPick={(label, kind) => {
+                if (kind === 'dd') {
+                  setDdLabels((prev) => (prev ? prev + '\n' : '') + label)
+                } else {
+                  setFinalLabels((prev) => (prev ? prev + '\n' : '') + label)
+                }
+              }}
+            />
+          )}
           <div className="mt-2 grid grid-cols-2 gap-3">
             <Field label="Differential (one per line)">
-              <textarea className={inputClass} rows={3} value={ddLabels} onChange={(e) => setDdLabels(e.target.value)} />
+              <textarea className={inputClass} rows={3} disabled={readOnly} value={ddLabels} onChange={(e) => setDdLabels(e.target.value)} />
             </Field>
             <Field label="Final (one per line)">
-              <textarea className={inputClass} rows={3} value={finalLabels} onChange={(e) => setFinalLabels(e.target.value)} />
+              <textarea className={inputClass} rows={3} disabled={readOnly} value={finalLabels} onChange={(e) => setFinalLabels(e.target.value)} />
             </Field>
           </div>
-          <Button className="mt-2" variant="secondary" onClick={saveDiagnoses}>
-            Save diagnoses
-          </Button>
+          {!readOnly && (
+            <Button className="mt-2" variant="secondary" onClick={saveDiagnoses}>
+              Save diagnoses
+            </Button>
+          )}
         </Card>
         </div>
 
@@ -426,6 +443,7 @@ export default function ExamPage() {
               <input
                 className={inputClass + ' col-span-2'}
                 placeholder="Drug"
+                disabled={readOnly}
                 value={item.free_text ?? ''}
                 onChange={(e) => {
                   const items = [...rxDraft.items]
@@ -436,6 +454,7 @@ export default function ExamPage() {
               <input
                 className={inputClass}
                 placeholder="Dose"
+                disabled={readOnly}
                 value={item.dose}
                 onChange={(e) => {
                   const items = [...rxDraft.items]
@@ -446,6 +465,7 @@ export default function ExamPage() {
               <input
                 className={inputClass}
                 placeholder="Frequency"
+                disabled={readOnly}
                 value={item.frequency}
                 onChange={(e) => {
                   const items = [...rxDraft.items]
@@ -456,6 +476,7 @@ export default function ExamPage() {
               <input
                 className={inputClass}
                 placeholder="Duration"
+                disabled={readOnly}
                 value={item.duration}
                 onChange={(e) => {
                   const items = [...rxDraft.items]
@@ -465,6 +486,7 @@ export default function ExamPage() {
               />
               <select
                 className={inputClass}
+                disabled={readOnly}
                 value={item.route ?? ''}
                 onChange={(e) => {
                   const items = [...rxDraft.items]
@@ -495,14 +517,17 @@ export default function ExamPage() {
           <textarea
             className={inputClass + ' mt-2'}
             rows={2}
+            disabled={readOnly}
             placeholder="Prescription notes (optional)"
             value={rxDraft.notes ?? ''}
             onChange={(e) => setRxDraft({ ...rxDraft, notes: e.target.value })}
           />
           <div className="mt-2 flex gap-2">
-            <Button className="ms-0" onClick={saveRx}>
-              Save prescription
-            </Button>
+            {!readOnly && (
+              <Button className="ms-0" onClick={saveRx}>
+                Save prescription
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => void printRx(visit.data.id)}>
               Print
             </Button>
@@ -639,8 +664,27 @@ function Timeline({ profileId }: { profileId: number }) {
 function Attachments({ visitId }: { visitId: number }) {
   const [file, setFile] = useState<File | null>(null)
   const [kind, setKind] = useState('photo')
+  const [thumbs, setThumbs] = useState<Record<number, string>>({})
   const visit = useQuery({ queryKey: ['visit-attachments', visitId], queryFn: () => get<Visit>(`/api/visits/${visitId}`) })
   const attachments = visit.data?.attachments ?? []
+
+  useEffect(() => {
+    let active = true
+    for (const a of attachments) {
+      if (!a.mime?.startsWith('image/') || thumbs[a.id]) continue
+      fetchBlob(`/api/files/${a.id}?thumb=true`)
+        .then((blob) => {
+          if (active) setThumbs((prev) => ({ ...prev, [a.id]: URL.createObjectURL(blob) }))
+        })
+        .catch(() => {
+          /* quarantined or still scanning — image will 409 until scanned */
+        })
+    }
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachments])
 
   async function upload(override?: File) {
     const target = override ?? file
@@ -676,12 +720,29 @@ function Attachments({ visitId }: { visitId: number }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {attachments.map((a) => (
-          <div key={a.id} className="rounded-md border border-border p-2 text-xs">
-            <p className="font-medium capitalize text-ink-900">{a.kind}</p>
-            <p className="text-ink-400">
-              {a.title ?? a.mime} · {a.scan_status}
-            </p>
-          </div>
+          <a
+            key={a.id}
+            href={`/api/files/${a.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="w-24 overflow-hidden rounded-md border border-border"
+            title={`${a.title ?? a.mime} · ${a.scan_status}`}
+          >
+            {a.mime?.startsWith('image/') ? (
+              thumbs[a.id] ? (
+                <img src={thumbs[a.id]} alt={a.title ?? a.kind} className="h-20 w-full object-cover" />
+              ) : (
+                <div className="flex h-20 items-center justify-center text-xs text-ink-400">
+                  loading…
+                </div>
+              )
+            ) : (
+              <div className="flex h-20 items-center justify-center text-xs text-ink-400">
+                {a.mime === 'application/pdf' ? 'PDF' : 'FILE'}
+              </div>
+            )}
+            <p className="truncate px-1 py-0.5 text-[10px] capitalize text-ink-600">{a.kind}</p>
+          </a>
         ))}
         {attachments.length === 0 && <p className="text-xs text-ink-400">No attachments yet</p>}
       </div>
@@ -689,14 +750,13 @@ function Attachments({ visitId }: { visitId: number }) {
   )
 }
 
-function Icd10Picker({
+export function Icd10Picker({
   onPick,
 }: {
   onPick: (label: string, kind: 'dd' | 'final') => void
 }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
-  const [pending, setPending] = useState<{ code: string; label: string } | null>(null)
   const { data } = useQuery({
     queryKey: ['icd10', q],
     queryFn: () => get<{ items: { code: string; label_en: string; label_ar: string | null }[] }>(`/api/icd10?q=${encodeURIComponent(q)}`),
@@ -715,53 +775,58 @@ function Icd10Picker({
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
-      {pending && (
-        <div className="absolute z-30 mt-1 flex gap-2 rounded-lg border border-border bg-surface p-2 shadow-lg">
-          <span className="py-1 text-xs text-ink-500">{pending.label}</span>
-          <button
-            type="button"
-            className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
-            onClick={() => {
-              onPick(pending.label, 'dd')
-              setPending(null)
-            }}
-          >
-            + Differential (DD)
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700"
-            onClick={() => {
-              onPick(pending.label, 'final')
-              setPending(null)
-            }}
-          >
-            + Final
-          </button>
+      {open && data && data.items.length > 0 && (
+        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-border bg-surface shadow-lg">
+          {data.items.map((item) => {
+            const label = `${item.label_en} (${item.code})`
+            return (
+              <div
+                key={item.code}
+                className="flex items-center gap-2 border-b border-border px-3 py-2"
+              >
+                <span className="flex-1 text-sm">
+                  <span className="font-mono text-brand-700">{item.code}</span>{' '}
+                  {item.label_en}{' '}
+                  {item.label_ar ? <span dir="rtl" className="text-ink-400">{item.label_ar}</span> : null}
+                </span>
+                <button
+                  type="button"
+                  className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onPick(label, 'dd')
+                    setQ('')
+                    setOpen(false)
+                  }}
+                >
+                  DD
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onPick(label, 'final')
+                    setQ('')
+                    setOpen(false)
+                  }}
+                >
+                  Final
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
-      {open && data && data.items.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border bg-surface shadow-lg">
-          {data.items.map((item) => (
-            <button
-              key={item.code}
-              type="button"
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-brand-50"
-              onClick={() => {
-                setPending({ code: item.code, label: `${item.label_en} (${item.code})` })
-                setQ('')
-                setOpen(false)
-              }}
-            >
-              <span className="font-mono text-brand-700">{item.code}</span>{' '}
-              {item.label_en} {item.label_ar ? <span dir="rtl" className="text-ink-400">{item.label_ar}</span> : null}
-            </button>
-          ))}
+      {open && q.trim().length >= 2 && data && data.items.length === 0 && (
+        <div className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-surface p-2 text-xs text-ink-400 shadow-lg">
+          No ICD-10 matches
         </div>
       )}
     </div>
   )
 }
+
 
 const VITAL_LABELS: Record<string, string> = {
   bp_sys: 'BP sys',
@@ -814,6 +879,7 @@ function VitalInput({
     </label>
   )
 }
+
 
 const ROUTES = ['oral', 'topical', 'sublingual', 'inhalation', 'IV', 'IM', 'SC',
   'eye', 'ear', 'nasal', 'rectal', 'vaginal']
